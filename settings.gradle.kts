@@ -14,5 +14,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "KillerSudoku"
+rootProject.name = "killer-sudoku-android"
 include(":app")

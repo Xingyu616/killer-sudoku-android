@@ -1,6 +1,6 @@
 # Roadmap
 
-This project is currently at version 1.0.0. The first release is playable, but the following areas should be improved in future versions.
+`killer-sudoku-android` is currently at version 1.0.0. The first release is playable, but the following areas should be improved in future versions.
 
 ## Puzzle Quality
 

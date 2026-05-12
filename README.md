@@ -1,4 +1,4 @@
-# Killer Sudoku
+# killer-sudoku-android
 
 Version: 1.0.0
 
