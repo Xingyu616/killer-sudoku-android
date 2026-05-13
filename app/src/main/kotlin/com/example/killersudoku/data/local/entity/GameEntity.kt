@@ -1,5 +1,6 @@
 package com.example.killersudoku.data.local.entity
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
@@ -12,6 +13,7 @@ data class GameEntity(
     val solutionGrid: String,
     val currentGrid: String,
     val cages: String,
+    @ColumnInfo(defaultValue = "''") val notes: String = "",
     val startedAt: Long,
     val lastModified: Long,
     val isCompleted: Boolean = false,

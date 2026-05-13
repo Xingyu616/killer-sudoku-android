@@ -1,105 +1,244 @@
 package com.example.killersudoku.ui.component
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.material3.Button
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.OutlinedButton
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NumberKeypad(
-    noteMode: Boolean,
+    cageCombinations: List<String>,
+    inactiveCombinations: Set<String>,
+    inactiveNumbers: Set<Int>,
     canUndo: Boolean,
     canRedo: Boolean,
+    onCombination: (String) -> Unit,
     onNumber: (Int) -> Unit,
     onErase: () -> Unit,
-    onToggleNote: () -> Unit,
     onHint: () -> Unit,
     onSolve: () -> Unit,
     onUndo: () -> Unit,
     onRedo: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val panelColor = Color(0xFF202936)
+    Surface(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(166.dp),
+        color = panelColor,
+        tonalElevation = 0.dp,
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            ActionColumn(
+                canUndo = canUndo,
+                canRedo = canRedo,
+                onErase = onErase,
+                onHint = onHint,
+                onSolve = onSolve,
+                onUndo = onUndo,
+                onRedo = onRedo,
+            )
+
+            CandidatePanel(
+                cageCombinations = cageCombinations,
+                inactiveCombinations = inactiveCombinations,
+                onCombination = onCombination,
+                modifier = Modifier.weight(1f),
+            )
+
+            NumberGrid(
+                inactiveNumbers = inactiveNumbers,
+                onNumber = onNumber,
+            )
+        }
+    }
+}
+
+@Composable
+private fun ActionColumn(
+    canUndo: Boolean,
+    canRedo: Boolean,
+    onErase: () -> Unit,
+    onHint: () -> Unit,
+    onSolve: () -> Unit,
+    onUndo: () -> Unit,
+    onRedo: () -> Unit,
+) {
     Column(
-        modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+        modifier = Modifier.width(76.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            CompactAction("↶", enabled = canUndo, onClick = onUndo, modifier = Modifier.weight(1f))
+            CompactAction("↷", enabled = canRedo, onClick = onRedo, modifier = Modifier.weight(1f))
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            CompactAction("删", enabled = true, onClick = onErase, modifier = Modifier.weight(1f))
+            CompactAction("?", enabled = true, onClick = onHint, modifier = Modifier.weight(1f))
+        }
+        CompactAction(
+            label = "答案",
+            enabled = true,
+            onClick = onSolve,
+            modifier = Modifier.fillMaxWidth(),
+            height = 70,
+        )
+    }
+}
+
+@Composable
+private fun CompactAction(
+    label: String,
+    enabled: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    height: Int = 32,
+) {
+    Box(
+        modifier = modifier
+            .height(height.dp)
+            .background(if (enabled) Color(0xFF2B3544) else Color(0xFF1A202A))
+            .border(1.dp, Color.White.copy(alpha = 0.08f))
+            .clickable(enabled = enabled, onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = label,
+            color = if (enabled) Color.White.copy(alpha = 0.86f) else Color.White.copy(alpha = 0.28f),
+            style = MaterialTheme.typography.labelLarge,
+            textAlign = TextAlign.Center,
+        )
+    }
+}
+
+@Composable
+private fun CandidatePanel(
+    cageCombinations: List<String>,
+    inactiveCombinations: Set<String>,
+    onCombination: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    LazyVerticalGrid(
+        columns = GridCells.Fixed(2),
+        modifier = modifier.height(150.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        if (cageCombinations.isEmpty()) {
+            items(listOf(" ")) { text ->
+                CombinationBox(text = text, isInactive = false, onClick = {})
+            }
+        } else {
+            items(cageCombinations) { combination ->
+                CombinationBox(
+                    text = combination,
+                    isInactive = combination in inactiveCombinations,
+                    onClick = { onCombination(combination) },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun CombinationBox(
+    text: String,
+    isInactive: Boolean,
+    onClick: () -> Unit,
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(31.dp)
+            .background(if (isInactive) Color(0xFF171D27) else Color(0xFF263140))
+            .clickable(enabled = text.isNotBlank(), onClick = onClick)
+            .border(1.dp, Color.White.copy(alpha = 0.08f)),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = text,
+            color = if (isInactive) Color.White.copy(alpha = 0.22f) else Color(0xFFFFEE75),
+            fontSize = 16.sp,
+            fontWeight = FontWeight.SemiBold,
+            textAlign = TextAlign.Center,
+        )
+    }
+}
+
+@Composable
+private fun NumberGrid(
+    inactiveNumbers: Set<Int>,
+    onNumber: (Int) -> Unit,
+) {
+    Column(
+        modifier = Modifier.width(150.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         repeat(3) { row ->
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 repeat(3) { col ->
                     val number = row * 3 + col + 1
-                    Button(
+                    NumberButton(
+                        number = number,
+                        isInactive = number in inactiveNumbers,
                         onClick = { onNumber(number) },
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(48.dp),
-                    ) {
-                        Text(number.toString())
-                    }
+                    )
                 }
             }
         }
+    }
+}
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            FilterChip(
-                selected = noteMode,
-                onClick = onToggleNote,
-                label = { Text("笔记") },
-                modifier = Modifier.weight(1f),
-            )
-            OutlinedButton(
-                onClick = onErase,
-                modifier = Modifier.weight(1f),
-            ) {
-                Text("删除")
-            }
-            OutlinedButton(
-                onClick = onHint,
-                modifier = Modifier.weight(1f),
-            ) {
-                Text("提示")
-            }
-        }
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            OutlinedButton(
-                onClick = onUndo,
-                enabled = canUndo,
-                modifier = Modifier.weight(1f),
-            ) {
-                Text("撤销")
-            }
-            OutlinedButton(
-                onClick = onRedo,
-                enabled = canRedo,
-                modifier = Modifier.weight(1f),
-            ) {
-                Text("重做")
-            }
-            OutlinedButton(
-                onClick = onSolve,
-                modifier = Modifier.weight(1f),
-            ) {
-                Text("答案")
-            }
-        }
+@Composable
+private fun NumberButton(
+    number: Int,
+    isInactive: Boolean,
+    onClick: () -> Unit,
+) {
+    Box(
+        modifier = Modifier
+            .size(46.dp)
+            .background(if (isInactive) Color(0xFF171D27) else Color(0xFF253040))
+            .border(1.dp, Color.White.copy(alpha = 0.10f))
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = number.toString(),
+            color = if (isInactive) Color.White.copy(alpha = 0.24f) else Color.White.copy(alpha = 0.82f),
+            fontSize = 30.sp,
+            fontWeight = FontWeight.Light,
+            textAlign = TextAlign.Center,
+        )
     }
 }

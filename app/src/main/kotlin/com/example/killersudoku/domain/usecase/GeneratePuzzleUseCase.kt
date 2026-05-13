@@ -5,25 +5,35 @@ import com.example.killersudoku.domain.model.Difficulty
 import com.example.killersudoku.domain.model.Grid
 import com.example.killersudoku.domain.model.GridPosition
 import com.example.killersudoku.domain.model.Puzzle
-import com.example.killersudoku.domain.model.emptyGrid
 import com.example.killersudoku.domain.model.withValue
 import javax.inject.Inject
 import kotlin.random.Random
 
-class GeneratePuzzleUseCase @Inject constructor() {
+class GeneratePuzzleUseCase @Inject constructor(
+    private val solver: KillerSudokuSolver,
+) {
     operator fun invoke(difficulty: Difficulty): Puzzle {
         val random = Random(System.currentTimeMillis())
-        val solution = generateSolvedGrid(random)
-        val initial = createInitialGrid(solution, difficulty, random)
-        val cages = createCages(solution, difficulty, random)
-        return Puzzle(
-            id = "${difficulty.name.lowercase()}-${System.currentTimeMillis()}",
-            difficulty = difficulty,
-            initialGrid = initial,
-            solutionGrid = solution,
-            cages = cages,
-            createdAt = System.currentTimeMillis(),
-        )
+        var bestPuzzle: Puzzle? = null
+
+        repeat(MAX_GENERATION_ATTEMPTS) {
+            val solution = generateSolvedGrid(random)
+            val cages = createCages(solution, difficulty, random)
+            val initial = createInitialGrid(solution, cages, difficulty, random)
+            val puzzle = createPuzzle(difficulty, initial, solution, cages)
+            if (initial.emptyCellCount() in difficulty.emptyCells) return puzzle
+
+            val best = bestPuzzle
+            if (best == null || initial.emptyCellCount() > best.initialGrid.emptyCellCount()) {
+                bestPuzzle = puzzle
+            }
+        }
+
+        return bestPuzzle ?: run {
+            val solution = generateSolvedGrid(random)
+            val cages = createCages(solution, difficulty, random)
+            createPuzzle(difficulty, solution, solution, cages)
+        }
     }
 
     private fun generateSolvedGrid(random: Random): Grid {
@@ -45,19 +55,26 @@ class GeneratePuzzleUseCase @Inject constructor() {
             (0..2).shuffled(random).map { offset -> band * 3 + offset }
         }
 
-    private fun createInitialGrid(solution: Grid, difficulty: Difficulty, random: Random): Grid {
-        val emptyCount = difficulty.emptyCells.random(random)
-        val givens = solution
-            .flatMapIndexed { row, values ->
-                values.indices.map { col -> GridPosition(row, col) }
-            }
-            .shuffled(random)
-            .drop(emptyCount)
-            .toSet()
+    private fun createInitialGrid(
+        solution: Grid,
+        cages: List<Cage>,
+        difficulty: Difficulty,
+        random: Random,
+    ): Grid {
+        val targetEmptyCount = difficulty.emptyCells.random(random)
+        var grid = solution
+        val positions = solution.positions().shuffled(random)
 
-        return givens.fold(emptyGrid()) { grid, position ->
-            grid.withValue(position, solution[position.row][position.col])
+        for (position in positions) {
+            if (grid.emptyCellCount() >= targetEmptyCount) break
+
+            val candidate = grid.withValue(position, 0)
+            if (solver.countSolutions(candidate, cages, limit = 2) == 1) {
+                grid = candidate
+            }
         }
+
+        return grid
     }
 
     private fun createCages(solution: Grid, difficulty: Difficulty, random: Random): List<Cage> {
@@ -106,4 +123,25 @@ class GeneratePuzzleUseCase @Inject constructor() {
             GridPosition(row, col - 1),
             GridPosition(row, col + 1),
         ).filter { it.row in 0..8 && it.col in 0..8 }
+
+    private fun createPuzzle(difficulty: Difficulty, initial: Grid, solution: Grid, cages: List<Cage>): Puzzle =
+        Puzzle(
+            id = "${difficulty.name.lowercase()}-${System.currentTimeMillis()}",
+            difficulty = difficulty,
+            initialGrid = initial,
+            solutionGrid = solution,
+            cages = cages,
+            createdAt = System.currentTimeMillis(),
+        )
+
+    private fun Grid.emptyCellCount(): Int = sumOf { row -> row.count { it == 0 } }
+
+    private fun Grid.positions(): List<GridPosition> =
+        flatMapIndexed { row, values ->
+            values.indices.map { col -> GridPosition(row, col) }
+        }
+
+    private companion object {
+        const val MAX_GENERATION_ATTEMPTS = 8
+    }
 }

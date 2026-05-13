@@ -17,6 +17,7 @@ fun Game.toEntity(): GameEntity =
         solutionGrid = puzzle.solutionGrid.encodeGrid(),
         currentGrid = currentGrid.encodeGrid(),
         cages = puzzle.cages.encodeCages(),
+        notes = notes.encodeNotes(),
         startedAt = startedAt,
         lastModified = lastModified,
         isCompleted = isCompleted,
@@ -36,6 +37,7 @@ fun GameEntity.toDomain(): Game {
         id = id,
         puzzle = puzzle,
         currentGrid = currentGrid.decodeGrid(),
+        notes = notes.decodeNotes(),
         startedAt = startedAt,
         lastModified = lastModified,
         isCompleted = isCompleted,
@@ -67,5 +69,23 @@ private fun String.decodeCages(): List<Cage> {
                 GridPosition(row.toInt(), col.toInt())
             },
         )
+    }
+}
+
+private fun Map<GridPosition, Set<Int>>.encodeNotes(): String =
+    entries
+        .filter { it.value.isNotEmpty() }
+        .sortedWith(compareBy<Map.Entry<GridPosition, Set<Int>>> { it.key.row }.thenBy { it.key.col })
+        .joinToString(separator = ";") { (position, values) ->
+            val notes = values.sorted().joinToString(separator = "")
+            "${position.row}-${position.col}:$notes"
+        }
+
+private fun String.decodeNotes(): Map<GridPosition, Set<Int>> {
+    if (isBlank()) return emptyMap()
+    return split(";").associate { encoded ->
+        val (cell, values) = encoded.split(":")
+        val (row, col) = cell.split("-")
+        GridPosition(row.toInt(), col.toInt()) to values.map { it.digitToInt() }.toSet()
     }
 }

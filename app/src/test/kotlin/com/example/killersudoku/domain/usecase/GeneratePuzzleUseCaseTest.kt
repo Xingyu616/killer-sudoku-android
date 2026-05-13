@@ -6,7 +6,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class GeneratePuzzleUseCaseTest {
-    private val generatePuzzle = GeneratePuzzleUseCase()
+    private val solver = KillerSudokuSolver()
+    private val generatePuzzle = GeneratePuzzleUseCase(solver)
 
     @Test
     fun generatedPuzzleHasValidShapeAndCages() {
@@ -22,5 +23,14 @@ class GeneratePuzzleUseCaseTest {
             val sum = cage.cells.sumOf { puzzle.solutionGrid[it.row][it.col] }
             assertEquals(sum, cage.targetSum)
         }
+    }
+
+    @Test
+    fun generatedPuzzleHasUniqueSolution() {
+        val puzzle = generatePuzzle(Difficulty.EASY)
+
+        val solutionCount = solver.countSolutions(puzzle.initialGrid, puzzle.cages, limit = 2)
+
+        assertEquals(1, solutionCount)
     }
 }

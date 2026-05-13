@@ -32,7 +32,9 @@ object DataModule {
             context,
             AppDatabase::class.java,
             "killer_sudoku.db",
-        ).build()
+        )
+            .addMigrations(AppDatabase.MIGRATION_1_2)
+            .build()
 
     @Provides
     fun provideGameDao(database: AppDatabase): GameDao = database.gameDao()

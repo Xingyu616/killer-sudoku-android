@@ -4,7 +4,6 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -20,11 +19,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.killersudoku.domain.model.Cage
 import com.example.killersudoku.domain.model.Game
 import com.example.killersudoku.domain.model.GridPosition
 import com.example.killersudoku.domain.model.valueAt
@@ -42,6 +41,7 @@ fun GameGrid(
     Box(
         modifier = modifier
             .aspectRatio(1f)
+            .background(Color.White)
             .border(2.dp, MaterialTheme.colorScheme.onSurface),
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -57,8 +57,6 @@ fun GameGrid(
                         SudokuCell(
                             value = game.currentGrid.valueAt(position),
                             notes = notes[position].orEmpty(),
-                            cage = cage,
-                            isCageLabel = cage?.isTopLeft(position) == true,
                             isGiven = game.puzzle.isGiven(position),
                             isSelected = selectedCell == position,
                             isRelated = selectedCell?.let {
@@ -81,30 +79,142 @@ fun GameGrid(
             val cellWidth = size.width / 9f
             val cellHeight = size.height / 9f
             for (line in 1..8) {
-                val stroke = if (line % 3 == 0) 3.5f else 1.1f
+                val stroke = if (line % 3 == 0) 3.2f else 1.0f
                 drawLine(
-                    color = gridLineColor,
+                    color = gridLineColor.copy(alpha = if (line % 3 == 0) 0.88f else 0.42f),
                     start = Offset(cellWidth * line, 0f),
                     end = Offset(cellWidth * line, size.height),
                     strokeWidth = stroke,
                 )
                 drawLine(
-                    color = gridLineColor,
+                    color = gridLineColor.copy(alpha = if (line % 3 == 0) 0.88f else 0.42f),
                     start = Offset(0f, cellHeight * line),
                     end = Offset(size.width, cellHeight * line),
                     strokeWidth = stroke,
                 )
             }
+
+            val dash = PathEffect.dashPathEffect(floatArrayOf(5f, 3f), 0f)
+            val inset = 4.dp.toPx()
+            game.puzzle.cages.forEach { cage ->
+                val cells = cage.cells.toSet()
+
+                repeat(9) { row ->
+                    val topCols = cells
+                        .filter { it.row == row && GridPosition(row - 1, it.col) !in cells }
+                        .map { it.col }
+                        .sorted()
+                    topCols.consecutiveRuns().forEach { run ->
+                        val y = row * cellHeight + inset
+                        drawLine(
+                            color = Color.Black,
+                            start = Offset(run.first * cellWidth + inset, y),
+                            end = Offset((run.last + 1) * cellWidth - inset, y),
+                            strokeWidth = 2.3f,
+                            pathEffect = dash,
+                        )
+                        drawCornerCaps(
+                            Offset(run.first * cellWidth + inset, y),
+                            Offset((run.last + 1) * cellWidth - inset, y),
+                        )
+                    }
+
+                    val bottomCols = cells
+                        .filter { it.row == row && GridPosition(row + 1, it.col) !in cells }
+                        .map { it.col }
+                        .sorted()
+                    bottomCols.consecutiveRuns().forEach { run ->
+                        val y = (row + 1) * cellHeight - inset
+                        drawLine(
+                            color = Color.Black,
+                            start = Offset(run.first * cellWidth + inset, y),
+                            end = Offset((run.last + 1) * cellWidth - inset, y),
+                            strokeWidth = 2.3f,
+                            pathEffect = dash,
+                        )
+                        drawCornerCaps(
+                            Offset(run.first * cellWidth + inset, y),
+                            Offset((run.last + 1) * cellWidth - inset, y),
+                        )
+                    }
+                }
+
+                repeat(9) { col ->
+                    val leftRows = cells
+                        .filter { it.col == col && GridPosition(it.row, col - 1) !in cells }
+                        .map { it.row }
+                        .sorted()
+                    leftRows.consecutiveRuns().forEach { run ->
+                        val x = col * cellWidth + inset
+                        drawLine(
+                            color = Color.Black,
+                            start = Offset(x, run.first * cellHeight + inset),
+                            end = Offset(x, (run.last + 1) * cellHeight - inset),
+                            strokeWidth = 2.3f,
+                            pathEffect = dash,
+                        )
+                        drawCornerCaps(
+                            Offset(x, run.first * cellHeight + inset),
+                            Offset(x, (run.last + 1) * cellHeight - inset),
+                        )
+                    }
+
+                    val rightRows = cells
+                        .filter { it.col == col && GridPosition(it.row, col + 1) !in cells }
+                        .map { it.row }
+                        .sorted()
+                    rightRows.consecutiveRuns().forEach { run ->
+                        val x = (col + 1) * cellWidth - inset
+                        drawLine(
+                            color = Color.Black,
+                            start = Offset(x, run.first * cellHeight + inset),
+                            end = Offset(x, (run.last + 1) * cellHeight - inset),
+                            strokeWidth = 2.3f,
+                            pathEffect = dash,
+                        )
+                        drawCornerCaps(
+                            Offset(x, run.first * cellHeight + inset),
+                            Offset(x, (run.last + 1) * cellHeight - inset),
+                        )
+                    }
+                }
+            }
+        }
+
+        CageLabelLayer(game = game)
+    }
+}
+
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawCornerCaps(
+    start: Offset,
+    end: Offset,
+) {
+    drawCircle(color = Color.Black, radius = 1.2f, center = start)
+    drawCircle(color = Color.Black, radius = 1.2f, center = end)
+}
+
+private fun List<Int>.consecutiveRuns(): List<IntRange> {
+    if (isEmpty()) return emptyList()
+    val runs = mutableListOf<IntRange>()
+    var start = first()
+    var previous = first()
+    drop(1).forEach { value ->
+        if (value == previous + 1) {
+            previous = value
+        } else {
+            runs += start..previous
+            start = value
+            previous = value
         }
     }
+    runs += start..previous
+    return runs
 }
 
 @Composable
 private fun SudokuCell(
     value: Int,
     notes: Set<Int>,
-    cage: Cage?,
-    isCageLabel: Boolean,
     isGiven: Boolean,
     isSelected: Boolean,
     isRelated: Boolean,
@@ -113,41 +223,31 @@ private fun SudokuCell(
     modifier: Modifier = Modifier,
 ) {
     val background = when {
-        isError -> MaterialTheme.colorScheme.tertiary.copy(alpha = 0.20f)
-        isSelected -> MaterialTheme.colorScheme.primary.copy(alpha = 0.22f)
-        isRelated -> MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
-        else -> cageColor(cage?.id ?: 0)
+        isError -> Color(0xFFFFECEC)
+        isSelected -> Color(0xFFF4C4F2)
+        isRelated -> Color.White
+        else -> Color.White
     }
 
     Box(
         modifier = modifier
             .background(background)
             .border(
-                width = if (isSelected) 2.dp else 0.5.dp,
-                color = if (isSelected) MaterialTheme.colorScheme.primary else Color.Black.copy(alpha = 0.18f),
+                width = if (isSelected) 1.5.dp else 0.3.dp,
+                color = if (isSelected) Color(0xFFAF4CA8) else Color.Black.copy(alpha = 0.18f),
             )
             .clickable(onClick = onClick)
             .padding(2.dp),
     ) {
-        if (isCageLabel && cage != null) {
-            Text(
-                text = cage.targetSum.toString(),
-                style = MaterialTheme.typography.labelSmall,
-                fontSize = 9.sp,
-                color = MaterialTheme.colorScheme.secondary,
-                modifier = Modifier.align(Alignment.TopStart),
-            )
-        }
-
         if (value != 0) {
             Text(
                 text = value.toString(),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = if (isGiven) FontWeight.Bold else FontWeight.Normal,
                 color = if (isGiven) {
-                    MaterialTheme.colorScheme.onSurface
+                    Color.Black
                 } else {
-                    MaterialTheme.colorScheme.primary
+                    Color(0xFF1D4ED8)
                 },
                 modifier = Modifier.align(Alignment.Center),
                 textAlign = TextAlign.Center,
@@ -158,8 +258,49 @@ private fun SudokuCell(
                 modifier = Modifier
                     .align(Alignment.Center)
                     .fillMaxSize()
-                    .padding(top = 8.dp),
+                    .padding(horizontal = 4.dp, vertical = 10.dp),
             )
+        }
+    }
+}
+
+@Composable
+private fun CageLabelLayer(
+    game: Game,
+    modifier: Modifier = Modifier,
+) {
+    Column(modifier = modifier.fillMaxSize()) {
+        repeat(9) { row ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+            ) {
+                repeat(9) { col ->
+                    val position = GridPosition(row, col)
+                    val cage = game.puzzle.cageFor(position)
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                            .padding(start = 5.dp, top = 4.dp),
+                        contentAlignment = Alignment.TopStart,
+                    ) {
+                        if (cage?.isTopLeft(position) == true) {
+                            Text(
+                                text = cage.targetSum.toString(),
+                                style = MaterialTheme.typography.labelSmall,
+                                fontSize = 9.sp,
+                                lineHeight = 9.sp,
+                                color = Color.Black,
+                                modifier = Modifier
+                                    .background(Color.White)
+                                    .padding(horizontal = 2.dp, vertical = 0.dp),
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -169,40 +310,20 @@ private fun NoteGrid(
     notes: Set<Int>,
     modifier: Modifier = Modifier,
 ) {
-    Column(
+    Box(
         modifier = modifier,
-        verticalArrangement = Arrangement.SpaceEvenly,
+        contentAlignment = Alignment.Center,
     ) {
-        repeat(3) { row ->
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                repeat(3) { col ->
-                    val number = row * 3 + col + 1
-                    Text(
-                        text = if (number in notes) number.toString() else "",
-                        fontSize = 8.sp,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.weight(1f),
-                    )
-                }
-            }
+        val text = notes.sorted().chunked(3).joinToString(separator = "\n") { values ->
+            values.joinToString(separator = "")
         }
+        Text(
+            text = text,
+            fontSize = if (notes.size <= 4) 11.sp else 9.sp,
+            lineHeight = if (notes.size <= 4) 12.sp else 10.sp,
+            color = Color(0xFF1D4ED8),
+            textAlign = TextAlign.Center,
+            fontWeight = FontWeight.Medium,
+        )
     }
-}
-
-private fun cageColor(id: Int): Color {
-    val colors = listOf(
-        Color(0xFFFFF7D7),
-        Color(0xFFE9F6EA),
-        Color(0xFFE8F1FA),
-        Color(0xFFFFE9DF),
-        Color(0xFFF0E8FA),
-        Color(0xFFEAF7F6),
-    )
-    return colors[id % colors.size].copy(alpha = 0.72f)
 }

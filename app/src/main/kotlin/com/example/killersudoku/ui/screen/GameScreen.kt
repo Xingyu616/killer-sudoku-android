@@ -20,6 +20,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.example.killersudoku.domain.model.GridPosition
 import com.example.killersudoku.ui.component.GameGrid
 import com.example.killersudoku.ui.component.NumberKeypad
 import com.example.killersudoku.viewmodel.GameUiState
@@ -29,10 +30,10 @@ import com.example.killersudoku.viewmodel.GameUiState
 fun GameScreen(
     state: GameUiState,
     onBack: () -> Unit,
-    onCellClick: (com.example.killersudoku.domain.model.GridPosition) -> Unit,
+    onCellClick: (GridPosition) -> Unit,
+    onCombination: (String) -> Unit,
     onNumber: (Int) -> Unit,
     onErase: () -> Unit,
-    onToggleNote: () -> Unit,
     onHint: () -> Unit,
     onCheck: () -> Unit,
     onSolve: () -> Unit,
@@ -112,6 +113,21 @@ fun GameScreen(
                 modifier = Modifier.fillMaxWidth(),
             )
 
+            NumberKeypad(
+                cageCombinations = state.cageCombinations,
+                inactiveCombinations = state.selectedCageId?.let { state.inactiveCombinations[it] }.orEmpty(),
+                inactiveNumbers = state.selectedCell?.let { state.inactiveNumbers[it] }.orEmpty(),
+                canUndo = state.canUndo,
+                canRedo = state.canRedo,
+                onCombination = onCombination,
+                onNumber = onNumber,
+                onErase = onErase,
+                onHint = onHint,
+                onSolve = onSolve,
+                onUndo = onUndo,
+                onRedo = onRedo,
+            )
+
             state.message?.let {
                 Text(
                     text = it,
@@ -119,19 +135,6 @@ fun GameScreen(
                     color = MaterialTheme.colorScheme.tertiary,
                 )
             }
-
-            NumberKeypad(
-                noteMode = state.noteMode,
-                canUndo = state.canUndo,
-                canRedo = state.canRedo,
-                onNumber = onNumber,
-                onErase = onErase,
-                onToggleNote = onToggleNote,
-                onHint = onHint,
-                onSolve = onSolve,
-                onUndo = onUndo,
-                onRedo = onRedo,
-            )
         }
     }
 }

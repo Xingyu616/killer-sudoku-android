@@ -1,11 +1,10 @@
 # Roadmap
 
-`killer-sudoku-android` is currently at version 1.0.0. The first release is playable, but the following areas should be improved in future versions.
+`killer-sudoku-android` is currently at version 1.1.0. The app is playable and now includes unique-solution generation checks, saved notes, and a clearer killer sudoku grid. The following areas should be improved in future versions.
 
 ## Puzzle Quality
 
-- Guarantee unique solutions for generated puzzles.
-- Add a stronger killer sudoku solver for difficulty grading.
+- Add stronger solver-based difficulty grading.
 - Improve cage generation to avoid overly trivial or awkward cages.
 - Add a curated puzzle library for stable daily challenges.
 
@@ -19,7 +18,7 @@
 
 ## UI and UX
 
-- Refine cage borders and labels.
+- Further refine cage borders and labels across screen densities.
 - Add landscape and tablet layouts.
 - Add accessibility labels and larger text support.
 - Add haptic feedback and sound toggles.
@@ -27,7 +26,7 @@
 
 ## Engineering
 
-- Add more unit tests for solver, generator, repository, and ViewModel.
+- Add more unit tests for repository and ViewModel behavior.
 - Add Compose UI tests for main workflows.
 - Add release signing configuration.
 - Add CI checks for build and tests.
