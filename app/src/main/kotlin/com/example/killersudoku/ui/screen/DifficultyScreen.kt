@@ -7,6 +7,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
@@ -17,8 +19,10 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.example.killersudoku.R
 import com.example.killersudoku.domain.model.Difficulty
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -32,23 +36,23 @@ fun DifficultyScreen(
         modifier = modifier.fillMaxSize(),
         topBar = {
             TopAppBar(
-                title = { Text("选择难度") },
+                title = { Text(stringResource(R.string.difficulty_title)) },
                 navigationIcon = {
                     TextButton(onClick = onBack) {
-                        Text("返回")
+                        Text(stringResource(R.string.action_back))
                     }
                 },
             )
         },
     ) { paddingValues ->
-        Column(
+        LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Difficulty.entries.forEach { difficulty ->
+            items(Difficulty.entries) { difficulty ->
                 DifficultyRow(
                     difficulty = difficulty,
                     onClick = { onDifficultySelected(difficulty) },
@@ -92,7 +96,11 @@ private fun DifficultyRow(
                 )
             }
             Text(
-                text = "${difficulty.emptyCells.first}-${difficulty.emptyCells.last} 空格",
+                text = stringResource(
+                    R.string.difficulty_empty_cells,
+                    difficulty.emptyCells.first.toString(),
+                    difficulty.emptyCells.last.toString(),
+                ),
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.secondary,
             )

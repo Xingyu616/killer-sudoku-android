@@ -1,12 +1,15 @@
 package com.example.killersudoku.data.mapper
 
 import com.example.killersudoku.data.local.entity.GameEntity
+import com.example.killersudoku.data.local.entity.GameHistoryEntity
 import com.example.killersudoku.domain.model.Cage
 import com.example.killersudoku.domain.model.Difficulty
 import com.example.killersudoku.domain.model.Game
+import com.example.killersudoku.domain.model.GameHistory
 import com.example.killersudoku.domain.model.Grid
 import com.example.killersudoku.domain.model.GridPosition
 import com.example.killersudoku.domain.model.Puzzle
+import com.example.killersudoku.domain.model.fromStoredName
 
 fun Game.toEntity(): GameEntity =
     GameEntity(
@@ -20,6 +23,11 @@ fun Game.toEntity(): GameEntity =
         notes = notes.encodeNotes(),
         startedAt = startedAt,
         lastModified = lastModified,
+        elapsedMillis = elapsedMillis,
+        timerStartedAt = timerStartedAt,
+        pausedAt = pausedAt,
+        usedHint = usedHint,
+        usedSolve = usedSolve,
         isCompleted = isCompleted,
         completedAt = completedAt,
     )
@@ -27,7 +35,7 @@ fun Game.toEntity(): GameEntity =
 fun GameEntity.toDomain(): Game {
     val puzzle = Puzzle(
         id = puzzleId,
-        difficulty = Difficulty.valueOf(difficulty),
+        difficulty = Difficulty.fromStoredName(difficulty),
         initialGrid = initialGrid.decodeGrid(),
         solutionGrid = solutionGrid.decodeGrid(),
         cages = cages.decodeCages(),
@@ -40,10 +48,40 @@ fun GameEntity.toDomain(): Game {
         notes = notes.decodeNotes(),
         startedAt = startedAt,
         lastModified = lastModified,
+        elapsedMillis = elapsedMillis,
+        timerStartedAt = timerStartedAt,
+        pausedAt = pausedAt,
+        usedHint = usedHint,
+        usedSolve = usedSolve,
         isCompleted = isCompleted,
         completedAt = completedAt,
     )
 }
+
+fun Game.toHistoryEntity(): GameHistoryEntity? {
+    val completed = completedAt ?: return null
+    if (!isCompleted) return null
+    return GameHistoryEntity(
+        gameId = id,
+        difficulty = puzzle.difficulty.name,
+        startedAt = startedAt,
+        completedAt = completed,
+        elapsedMillis = elapsedMillis,
+        usedHint = usedHint,
+        usedSolve = usedSolve,
+    )
+}
+
+fun GameHistoryEntity.toDomain(): GameHistory =
+    GameHistory(
+        gameId = gameId,
+        difficulty = Difficulty.fromStoredName(difficulty),
+        startedAt = startedAt,
+        completedAt = completedAt,
+        elapsedMillis = elapsedMillis,
+        usedHint = usedHint,
+        usedSolve = usedSolve,
+    )
 
 fun Grid.encodeGrid(): String =
     flatten().joinToString(separator = "") { it.toString() }

@@ -1,5 +1,32 @@
 # Changelog
 
+## 1.2.0 - 2026-05-13
+
+Gameplay session polish update.
+
+### Added
+
+- Added elapsed game timer with pause and resume support.
+- Added local completion history and best-time statistics by difficulty.
+- Added completion dialog with final time.
+- Added automatic pencil-mark cleanup for related cells after correct entries.
+- Added Room database migration to version 3 for timer and history fields.
+
+### Changed
+
+- Updated app version to `1.2.0` with `versionCode` 3.
+- Moved user-facing UI labels and messages into string resources.
+- Completion, hint, and solve actions now record helper usage for history.
+
+### Fixed
+
+- Fixed completed games so further input is ignored after the board is solved.
+- Fixed backgrounding behavior so elapsed time does not continue while the app is stopped.
+- Fixed pencil marks so up to nine candidates can be visible in one cell.
+- Fixed cage combination rows so long combinations are not clipped.
+- Fixed erase so the number pad state resets for the selected cell.
+- Fixed candidate entry so one cell no longer clears candidates in related cells.
+
 ## 1.1.0 - 2026-05-13
 
 Puzzle quality, persistence, and killer sudoku interaction update.

@@ -6,6 +6,7 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
 import com.example.killersudoku.data.local.entity.GameEntity
+import com.example.killersudoku.data.local.entity.GameHistoryEntity
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -21,4 +22,10 @@ interface GameDao {
 
     @Query("SELECT * FROM games ORDER BY lastModified DESC LIMIT 1")
     fun observeLatest(): Flow<GameEntity?>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertHistory(history: GameHistoryEntity)
+
+    @Query("SELECT * FROM game_history ORDER BY completedAt DESC")
+    fun observeHistory(): Flow<List<GameHistoryEntity>>
 }

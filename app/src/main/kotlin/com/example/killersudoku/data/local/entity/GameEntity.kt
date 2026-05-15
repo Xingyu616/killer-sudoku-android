@@ -16,6 +16,11 @@ data class GameEntity(
     @ColumnInfo(defaultValue = "''") val notes: String = "",
     val startedAt: Long,
     val lastModified: Long,
+    @ColumnInfo(defaultValue = "0") val elapsedMillis: Long = 0L,
+    val timerStartedAt: Long? = startedAt,
+    val pausedAt: Long? = null,
+    @ColumnInfo(defaultValue = "0") val usedHint: Boolean = false,
+    @ColumnInfo(defaultValue = "0") val usedSolve: Boolean = false,
     val isCompleted: Boolean = false,
     val completedAt: Long? = null,
 )

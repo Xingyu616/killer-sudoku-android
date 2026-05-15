@@ -2,6 +2,7 @@ package com.example.killersudoku.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.killersudoku.R
 import com.example.killersudoku.domain.model.Difficulty
 import com.example.killersudoku.domain.model.Game
 import com.example.killersudoku.domain.model.GridPosition
@@ -12,6 +13,7 @@ import com.example.killersudoku.domain.usecase.SolvePuzzleUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -33,8 +35,10 @@ class GameViewModel @Inject constructor(
     private val undoStack = ArrayDeque<Game>()
     private val redoStack = ArrayDeque<Game>()
     private val saveMutex = Mutex()
+
     @Volatile
     private var latestSaveRequest = 0L
+
     @Volatile
     private var completedSaveRequest = 0L
 
@@ -48,18 +52,43 @@ class GameViewModel @Inject constructor(
                         currentGame.id == game.id &&
                         (completedSaveRequest < latestSaveRequest || currentGame.lastModified >= game.lastModified)
                     val nextGame = if (shouldKeepCurrentGame) currentGame else game
+                    val selectedCell = it.selectedCell?.takeIf { selected ->
+                        nextGame?.puzzle?.isGiven(selected) == false
+                    }
+                    val selectedCells = it.selectedCells.filterTo(mutableSetOf()) { selected ->
+                        nextGame?.puzzle?.isGiven(selected) == false
+                    }
                     it.copy(
                         isLoading = false,
                         game = nextGame,
-                        selectedCell = it.selectedCell?.takeIf { selected ->
-                            nextGame?.puzzle?.isGiven(selected) == false
-                        },
+                        selectedCell = selectedCell,
+                        selectedCells = selectedCells,
                         notes = nextGame?.notes.orEmpty(),
-                        cageCombinations = cageCombinationsFor(nextGame, it.selectedCell),
-                        selectedCageId = cageIdFor(nextGame, it.selectedCell),
+                        cageCombinations = cageCombinationsFor(nextGame, selectedCell),
+                        selectedCageId = cageIdFor(nextGame, selectedCell),
+                        elapsedMillis = nextGame?.currentElapsedMillis().orZero(),
+                        isPaused = nextGame?.pausedAt != null,
                         canUndo = undoStack.isNotEmpty(),
                         canRedo = redoStack.isNotEmpty(),
                     )
+                }
+            }
+        }
+        viewModelScope.launch {
+            repository.observeStats().collect { stats ->
+                _uiState.update { it.copy(stats = stats) }
+            }
+        }
+        viewModelScope.launch {
+            while (true) {
+                delay(1_000L)
+                _uiState.update {
+                    val game = it.game
+                    if (game == null || game.isCompleted || game.pausedAt != null) {
+                        it
+                    } else {
+                        it.copy(elapsedMillis = game.currentElapsedMillis())
+                    }
                 }
             }
         }
@@ -67,7 +96,14 @@ class GameViewModel @Inject constructor(
 
     fun startNewGame(difficulty: Difficulty) {
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, message = null, mistakes = emptySet()) }
+            _uiState.update {
+                it.copy(
+                    isLoading = true,
+                    message = null,
+                    mistakes = emptySet(),
+                    showCompletionDialog = false,
+                )
+            }
             undoStack.clear()
             redoStack.clear()
             val game = withContext(Dispatchers.Default) {
@@ -78,6 +114,7 @@ class GameViewModel @Inject constructor(
                     isLoading = false,
                     game = game,
                     selectedCell = null,
+                    selectedCells = emptySet(),
                     notes = emptyMap(),
                     cageCombinations = emptyList(),
                     selectedCageId = null,
@@ -85,6 +122,9 @@ class GameViewModel @Inject constructor(
                     inactiveNumbers = emptyMap(),
                     mistakes = emptySet(),
                     message = null,
+                    elapsedMillis = game.currentElapsedMillis(),
+                    isPaused = false,
+                    showCompletionDialog = false,
                     canUndo = false,
                     canRedo = false,
                 )
@@ -94,19 +134,22 @@ class GameViewModel @Inject constructor(
 
     fun selectCell(position: GridPosition) {
         val game = _uiState.value.game ?: return
+        if (game.isCompleted) return
         if (game.puzzle.isGiven(position)) {
             _uiState.update {
                 it.copy(
                     selectedCell = position,
+                    selectedCells = emptySet(),
                     cageCombinations = cageCombinationsFor(game, position),
                     selectedCageId = cageIdFor(game, position),
-                    message = "这是题目给出的数字",
+                    message = UiMessage(R.string.message_given_cell),
                 )
             }
         } else {
             _uiState.update {
                 it.copy(
                     selectedCell = position,
+                    selectedCells = setOf(position),
                     cageCombinations = cageCombinationsFor(game, position),
                     selectedCageId = cageIdFor(game, position),
                     message = null,
@@ -115,31 +158,51 @@ class GameViewModel @Inject constructor(
         }
     }
 
+    fun selectCells(positions: Set<GridPosition>) {
+        val game = _uiState.value.game ?: return
+        if (game.isCompleted || game.pausedAt != null) return
+        val editable = positions
+            .filterNot { game.puzzle.isGiven(it) }
+            .toSet()
+        val primary = editable.sortedWith(compareBy<GridPosition> { it.row }.thenBy { it.col }).firstOrNull()
+        _uiState.update {
+            it.copy(
+                selectedCell = primary,
+                selectedCells = editable,
+                cageCombinations = cageCombinationsFor(game, primary),
+                selectedCageId = cageIdFor(game, primary),
+                message = null,
+            )
+        }
+    }
+
     fun inputNumber(value: Int) {
         val state = _uiState.value
         val game = state.game ?: return
-        val position = state.selectedCell ?: return
-        if (game.puzzle.isGiven(position)) return
+        if (game.isCompleted || game.pausedAt != null) return
+        val positions = state.inputTargets(game)
+        if (positions.isEmpty()) return
 
-        val currentValue = game.currentGrid.valueAt(position)
-        val currentNotes = game.notes[position].orEmpty()
-        val updated = when {
-            currentValue == value -> game.withCell(position, 0).withNotes(game.notes - position)
-            currentNotes.isNotEmpty() -> game.withPencilValue(position, value)
-            currentValue != 0 -> game.withNotes(game.notes + (position to setOf(currentValue, value)))
-                .withCell(position, 0)
-            else -> game.withCell(position, value).completedIfSolved()
-        }.copy(isCompleted = false, completedAt = null).completedIfSolved()
+        val edited = positions.fold(game) { current, position ->
+            current.withInputValue(position, value)
+        }.copy(isCompleted = false, completedAt = null)
+        val updated = edited.completedIfSolved()
+
         pushUndo(game)
         save(updated)
         _uiState.update {
             it.copy(
                 game = updated,
-                mistakes = it.mistakes - position,
+                mistakes = it.mistakes - positions,
                 notes = updated.notes,
-                cageCombinations = cageCombinationsFor(updated, position),
-                inactiveNumbers = it.inactiveNumbers.toggle(position, value),
-                message = if (updated.isCompleted) "完成！这一局很漂亮。" else null,
+                cageCombinations = cageCombinationsFor(updated, it.selectedCell),
+                inactiveNumbers = positions.fold(it.inactiveNumbers) { current, position ->
+                    current.toggle(position, value)
+                },
+                message = if (updated.isCompleted) UiMessage(R.string.message_completed) else null,
+                elapsedMillis = updated.currentElapsedMillis(),
+                isPaused = updated.pausedAt != null,
+                showCompletionDialog = updated.isCompleted && !game.isCompleted,
                 canUndo = undoStack.isNotEmpty(),
                 canRedo = redoStack.isNotEmpty(),
             )
@@ -147,8 +210,10 @@ class GameViewModel @Inject constructor(
     }
 
     fun toggleCombination(combination: String) {
-        val position = _uiState.value.selectedCell ?: return
-        val cageId = cageIdFor(_uiState.value.game, position) ?: return
+        val state = _uiState.value
+        if (state.game?.isCompleted == true || state.game?.pausedAt != null) return
+        val position = state.selectedCell ?: return
+        val cageId = cageIdFor(state.game, position) ?: return
         _uiState.update {
             it.copy(inactiveCombinations = it.inactiveCombinations.toggle(cageId, combination))
         }
@@ -157,12 +222,15 @@ class GameViewModel @Inject constructor(
     fun eraseSelected() {
         val state = _uiState.value
         val game = state.game ?: return
-        val position = state.selectedCell ?: return
-        if (game.puzzle.isGiven(position)) return
-        if (game.currentGrid.valueAt(position) == 0 && game.notes[position].isNullOrEmpty()) return
+        if (game.isCompleted || game.pausedAt != null) return
+        val positions = state.inputTargets(game).filter { position ->
+            game.currentGrid.valueAt(position) != 0 || !game.notes[position].isNullOrEmpty()
+        }.toSet()
+        if (positions.isEmpty()) return
 
-        val updated = game.withCell(position, 0)
-            .withNotes(game.notes - position)
+        val updated = positions.fold(game) { current, position ->
+            current.withCell(position, 0).withNotes(current.notes - position)
+        }
             .copy(isCompleted = false, completedAt = null)
         pushUndo(game)
         save(updated)
@@ -170,8 +238,10 @@ class GameViewModel @Inject constructor(
             it.copy(
                 game = updated,
                 notes = updated.notes,
-                cageCombinations = cageCombinationsFor(updated, position),
-                mistakes = it.mistakes - position,
+                cageCombinations = cageCombinationsFor(updated, it.selectedCell),
+                mistakes = it.mistakes - positions,
+                inactiveNumbers = it.inactiveNumbers - positions,
+                elapsedMillis = updated.currentElapsedMillis(),
                 canUndo = undoStack.isNotEmpty(),
                 canRedo = redoStack.isNotEmpty(),
             )
@@ -181,11 +251,14 @@ class GameViewModel @Inject constructor(
     fun requestHint() {
         val state = _uiState.value
         val game = state.game ?: return
+        if (game.isCompleted || game.pausedAt != null) return
         val hint = getHint(game, state.selectedCell) ?: run {
-            _uiState.update { it.copy(message = "没有可提示的空格") }
+            _uiState.update { it.copy(message = UiMessage(R.string.message_no_hint)) }
             return
         }
-        val updated = game.withNotes(game.notes + (hint.position to hint.candidates))
+        val updated = game
+            .withNotes(game.notes + (hint.position to hint.candidates))
+            .copy(usedHint = true)
         pushUndo(game)
         save(updated)
         _uiState.update {
@@ -195,7 +268,15 @@ class GameViewModel @Inject constructor(
                 notes = updated.notes,
                 cageCombinations = cageCombinationsFor(updated, hint.position),
                 selectedCageId = cageIdFor(updated, hint.position),
-                message = hint.message,
+                message = UiMessage(
+                    R.string.message_hint,
+                    listOf(
+                        (hint.position.row + 1).toString(),
+                        (hint.position.col + 1).toString(),
+                        hint.answer.toString(),
+                    ),
+                ),
+                elapsedMillis = updated.currentElapsedMillis(),
                 canUndo = undoStack.isNotEmpty(),
                 canRedo = redoStack.isNotEmpty(),
             )
@@ -204,6 +285,7 @@ class GameViewModel @Inject constructor(
 
     fun checkBoard() {
         val game = _uiState.value.game ?: return
+        if (game.pausedAt != null) return
         val mistakes = game.currentGrid
             .flatMapIndexed { row, values ->
                 values.mapIndexedNotNull { col, value ->
@@ -216,15 +298,20 @@ class GameViewModel @Inject constructor(
         _uiState.update {
             it.copy(
                 mistakes = mistakes,
-                message = if (mistakes.isEmpty()) "目前没有发现错误" else "有 ${mistakes.size} 个格子需要再看看",
+                message = if (mistakes.isEmpty()) {
+                    UiMessage(R.string.message_no_mistakes)
+                } else {
+                    UiMessage(R.string.message_mistakes, listOf(mistakes.size.toString()))
+                },
             )
         }
     }
 
     fun solve() {
         val game = _uiState.value.game ?: return
+        if (game.isCompleted || game.pausedAt != null) return
         pushUndo(game)
-        val solved = solvePuzzle(game)
+        val solved = solvePuzzle(game.copy(usedSolve = true))
         save(solved)
         _uiState.update {
             it.copy(
@@ -233,15 +320,53 @@ class GameViewModel @Inject constructor(
                 cageCombinations = emptyList(),
                 selectedCageId = null,
                 mistakes = emptySet(),
-                message = "已显示完整解答",
+                message = UiMessage(R.string.message_solved),
+                elapsedMillis = solved.currentElapsedMillis(),
+                isPaused = false,
+                showCompletionDialog = true,
                 canUndo = undoStack.isNotEmpty(),
                 canRedo = redoStack.isNotEmpty(),
             )
         }
     }
 
+    fun pauseGame() {
+        val game = _uiState.value.game ?: return
+        val paused = game.pause()
+        if (paused == game) return
+        save(paused)
+        _uiState.update {
+            it.copy(
+                game = paused,
+                elapsedMillis = paused.elapsedMillis,
+                isPaused = true,
+                message = UiMessage(R.string.message_paused),
+            )
+        }
+    }
+
+    fun resumeGame() {
+        val game = _uiState.value.game ?: return
+        val resumed = game.resume()
+        if (resumed == game) return
+        save(resumed)
+        _uiState.update {
+            it.copy(
+                game = resumed,
+                elapsedMillis = resumed.currentElapsedMillis(),
+                isPaused = false,
+                message = null,
+            )
+        }
+    }
+
+    fun dismissCompletionDialog() {
+        _uiState.update { it.copy(showCompletionDialog = false) }
+    }
+
     fun undo() {
         val current = _uiState.value.game ?: return
+        if (current.pausedAt != null) return
         val previous = undoStack.removeLastOrNullCompat() ?: return
         redoStack.addLast(current)
         save(previous)
@@ -251,8 +376,12 @@ class GameViewModel @Inject constructor(
                 notes = previous.notes,
                 cageCombinations = cageCombinationsFor(previous, it.selectedCell),
                 selectedCageId = cageIdFor(previous, it.selectedCell),
+                inactiveNumbers = emptyMap(),
                 mistakes = emptySet(),
                 message = null,
+                elapsedMillis = previous.currentElapsedMillis(),
+                isPaused = previous.pausedAt != null,
+                showCompletionDialog = false,
                 canUndo = undoStack.isNotEmpty(),
                 canRedo = redoStack.isNotEmpty(),
             )
@@ -261,6 +390,7 @@ class GameViewModel @Inject constructor(
 
     fun redo() {
         val current = _uiState.value.game ?: return
+        if (current.pausedAt != null) return
         val next = redoStack.removeLastOrNullCompat() ?: return
         undoStack.addLast(current)
         save(next)
@@ -270,8 +400,12 @@ class GameViewModel @Inject constructor(
                 notes = next.notes,
                 cageCombinations = cageCombinationsFor(next, it.selectedCell),
                 selectedCageId = cageIdFor(next, it.selectedCell),
+                inactiveNumbers = emptyMap(),
                 mistakes = emptySet(),
                 message = null,
+                elapsedMillis = next.currentElapsedMillis(),
+                isPaused = next.pausedAt != null,
+                showCompletionDialog = next.isCompleted,
                 canUndo = undoStack.isNotEmpty(),
                 canRedo = redoStack.isNotEmpty(),
             )
@@ -292,6 +426,9 @@ class GameViewModel @Inject constructor(
             saveMutex.withLock {
                 if (requestId == latestSaveRequest) {
                     repository.saveGame(game)
+                    if (game.isCompleted) {
+                        repository.recordCompletedGame(game)
+                    }
                     completedSaveRequest = requestId
                 }
             }
@@ -326,6 +463,18 @@ class GameViewModel @Inject constructor(
         return results
     }
 
+    private fun Game.withInputValue(position: GridPosition, value: Int): Game {
+        val currentValue = currentGrid.valueAt(position)
+        val currentNotes = notes[position].orEmpty()
+        return when {
+            currentValue == value -> withCell(position, 0).withNotes(notes - position)
+            currentNotes.isNotEmpty() -> withPencilValue(position, value)
+            currentValue != 0 -> withNotes(notes + (position to setOf(currentValue, value)))
+                .withCell(position, 0)
+            else -> withCell(position, value)
+        }
+    }
+
     private fun Game.withPencilValue(position: GridPosition, value: Int): Game {
         val baseNotes = notes[position].orEmpty()
         val currentValue = currentGrid.valueAt(position).takeIf { it != 0 }
@@ -350,4 +499,11 @@ class GameViewModel @Inject constructor(
 
     private fun ArrayDeque<Game>.removeLastOrNullCompat(): Game? =
         if (isEmpty()) null else removeLast()
+
+    private fun Long?.orZero(): Long = this ?: 0L
+
+    private fun GameUiState.inputTargets(game: Game): Set<GridPosition> =
+        (selectedCells.ifEmpty { selectedCell?.let { setOf(it) }.orEmpty() })
+            .filterNot { game.puzzle.isGiven(it) }
+            .toSet()
 }

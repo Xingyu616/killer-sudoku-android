@@ -1,4 +1,44 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Killer Sudoku</string>
+    <string name="home_subtitle">杀手数独</string>
+    <string name="home_latest_game">最近一局：%1$s%2$s</string>
+    <string name="home_completed_suffix">，已完成</string>
+    <string name="home_in_progress_suffix">，进行中</string>
+    <string name="home_start_prompt">选择难度开始一局新的挑战</string>
+    <string name="home_new_game">新游戏</string>
+    <string name="home_continue_game">继续游戏</string>
+    <string name="home_recent_result">最近完成</string>
+    <string name="home_no_results">还没有完成记录</string>
+    <string name="home_best_times">最佳时间</string>
+    <string name="home_games_count">%1$s 局</string>
+    <string name="difficulty_title">选择难度</string>
+    <string name="action_back">返回</string>
+    <string name="action_home">首页</string>
+    <string name="action_check">检查</string>
+    <string name="action_pause">暂停</string>
+    <string name="action_resume">继续</string>
+    <string name="action_close">知道了</string>
+    <string name="game_title">游戏</string>
+    <string name="game_completed">已完成</string>
+    <string name="game_paused">已暂停</string>
+    <string name="game_in_progress">进行中</string>
+    <string name="game_cages">笼区 %1$s</string>
+    <string name="game_timer">用时 %1$s</string>
+    <string name="game_empty">还没有游戏</string>
+    <string name="game_completion_title">完成！</string>
+    <string name="game_completion_body">这一局用时 %1$s，漂亮收工。</string>
+    <string name="game_completion_hint">完成记录已保存，可以在首页查看最近成绩和最佳时间。</string>
+    <string name="difficulty_empty_cells">%1$s-%2$s 空格</string>
+    <string name="keypad_delete">删</string>
+    <string name="keypad_hint">?</string>
+    <string name="keypad_answer">答案</string>
+    <string name="message_given_cell">这是题目给出的数字</string>
+    <string name="message_completed">完成！这一局很漂亮。</string>
+    <string name="message_no_hint">没有可提示的空格</string>
+    <string name="message_hint">第 %1$s 行第 %2$s 列可以填 %3$s</string>
+    <string name="message_no_mistakes">目前没有发现错误</string>
+    <string name="message_mistakes">有 %1$s 个格子需要再看看</string>
+    <string name="message_solved">已显示完整解答</string>
+    <string name="message_paused">已暂停</string>
 </resources>

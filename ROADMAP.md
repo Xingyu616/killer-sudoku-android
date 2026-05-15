@@ -1,6 +1,6 @@
 # Roadmap
 
-`killer-sudoku-android` is currently at version 1.1.0. The app is playable and now includes unique-solution generation checks, saved notes, and a clearer killer sudoku grid. The following areas should be improved in future versions.
+`killer-sudoku-android` is currently at version 1.2.0. The app is playable and now includes unique-solution generation checks, saved notes, a clearer killer sudoku grid, timer, pause/resume, completion history, and best-time statistics. The following areas should be improved in future versions.
 
 ## Puzzle Quality
 
@@ -10,11 +10,9 @@
 
 ## Gameplay
 
-- Add timer, statistics, and completion history.
 - Add mistake limits and optional relaxed mode.
-- Add pencil mark auto-cleanup.
 - Add smarter hints that explain reasoning steps.
-- Add pause and resume UX.
+- Add configurable pencil mark cleanup and helper settings.
 
 ## UI and UX
 

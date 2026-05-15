@@ -4,6 +4,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -15,11 +16,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -32,17 +36,49 @@ import com.example.killersudoku.domain.model.valueAt
 fun GameGrid(
     game: Game,
     selectedCell: GridPosition?,
+    selectedCells: Set<GridPosition>,
     notes: Map<GridPosition, Set<Int>>,
     mistakes: Set<GridPosition>,
     onCellClick: (GridPosition) -> Unit,
+    onCellsSelected: (Set<GridPosition>) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val gridLineColor = MaterialTheme.colorScheme.onSurface
+    val dragSelection = remember { mutableStateOf(emptySet<GridPosition>()) }
+    val visibleSelection = selectedCells + dragSelection.value
     Box(
         modifier = modifier
             .aspectRatio(1f)
             .background(Color.White)
-            .border(2.dp, MaterialTheme.colorScheme.onSurface),
+            .border(2.dp, MaterialTheme.colorScheme.onSurface)
+            .pointerInput(Unit) {
+                fun Offset.toGridPosition(): GridPosition? {
+                    if (x !in 0f..size.width.toFloat() || y !in 0f..size.height.toFloat()) return null
+                    val col = (x / (size.width / 9f)).toInt().coerceIn(0, 8)
+                    val row = (y / (size.height / 9f)).toInt().coerceIn(0, 8)
+                    return GridPosition(row, col)
+                }
+
+                detectDragGestures(
+                    onDragStart = { offset ->
+                        dragSelection.value = offset.toGridPosition()?.let { setOf(it) }.orEmpty()
+                    },
+                    onDragEnd = {
+                        if (dragSelection.value.isNotEmpty()) {
+                            onCellsSelected(dragSelection.value)
+                        }
+                        dragSelection.value = emptySet()
+                    },
+                    onDragCancel = {
+                        dragSelection.value = emptySet()
+                    },
+                    onDrag = { change, _ ->
+                        change.position.toGridPosition()?.let { position ->
+                            dragSelection.value = dragSelection.value + position
+                        }
+                    },
+                )
+            },
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             repeat(9) { row ->
@@ -58,11 +94,15 @@ fun GameGrid(
                             value = game.currentGrid.valueAt(position),
                             notes = notes[position].orEmpty(),
                             isGiven = game.puzzle.isGiven(position),
-                            isSelected = selectedCell == position,
+                            hasCageLabel = cage?.isTopLeft(position) == true,
+                            isSelected = position in visibleSelection || selectedCell == position,
                             isRelated = selectedCell?.let {
-                                it.row == row ||
-                                    it.col == col ||
-                                    game.puzzle.cageFor(it)?.id == cage?.id
+                                position !in visibleSelection &&
+                                    (
+                                        it.row == row ||
+                                            it.col == col ||
+                                            game.puzzle.cageFor(it)?.id == cage?.id
+                                        )
                             } == true,
                             isError = position in mistakes,
                             onClick = { onCellClick(position) },
@@ -216,6 +256,7 @@ private fun SudokuCell(
     value: Int,
     notes: Set<Int>,
     isGiven: Boolean,
+    hasCageLabel: Boolean,
     isSelected: Boolean,
     isRelated: Boolean,
     isError: Boolean,
@@ -258,7 +299,12 @@ private fun SudokuCell(
                 modifier = Modifier
                     .align(Alignment.Center)
                     .fillMaxSize()
-                    .padding(horizontal = 4.dp, vertical = 10.dp),
+                    .padding(
+                        start = 3.dp,
+                        top = if (hasCageLabel) 10.dp else 3.dp,
+                        end = 3.dp,
+                        bottom = 3.dp,
+                    ),
             )
         }
     }
@@ -283,19 +329,19 @@ private fun CageLabelLayer(
                         modifier = Modifier
                             .weight(1f)
                             .fillMaxHeight()
-                            .padding(start = 5.dp, top = 4.dp),
+                            .padding(start = 3.dp, top = 5.dp),
                         contentAlignment = Alignment.TopStart,
                     ) {
                         if (cage?.isTopLeft(position) == true) {
                             Text(
                                 text = cage.targetSum.toString(),
                                 style = MaterialTheme.typography.labelSmall,
-                                fontSize = 9.sp,
-                                lineHeight = 9.sp,
+                                fontSize = 7.sp,
+                                lineHeight = 7.sp,
                                 color = Color.Black,
                                 modifier = Modifier
                                     .background(Color.White)
-                                    .padding(horizontal = 2.dp, vertical = 0.dp),
+                                    .padding(horizontal = 1.dp, vertical = 0.dp),
                             )
                         }
                     }
@@ -310,20 +356,35 @@ private fun NoteGrid(
     notes: Set<Int>,
     modifier: Modifier = Modifier,
 ) {
-    Box(
-        modifier = modifier,
-        contentAlignment = Alignment.Center,
-    ) {
-        val text = notes.sorted().chunked(3).joinToString(separator = "\n") { values ->
-            values.joinToString(separator = "")
+    Column(modifier = modifier) {
+        repeat(3) { row ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                repeat(3) { col ->
+                    val value = row * 3 + col + 1
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight(),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        if (value in notes) {
+                            Text(
+                                text = value.toString(),
+                                fontSize = 7.sp,
+                                lineHeight = 7.sp,
+                                color = Color(0xFF1D4ED8),
+                                textAlign = TextAlign.Center,
+                                fontWeight = FontWeight.Medium,
+                            )
+                        }
+                    }
+                }
+            }
         }
-        Text(
-            text = text,
-            fontSize = if (notes.size <= 4) 11.sp else 9.sp,
-            lineHeight = if (notes.size <= 4) 12.sp else 10.sp,
-            color = Color(0xFF1D4ED8),
-            textAlign = TextAlign.Center,
-            fontWeight = FontWeight.Medium,
-        )
     }
 }

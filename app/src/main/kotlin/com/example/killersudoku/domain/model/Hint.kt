@@ -4,5 +4,4 @@ data class Hint(
     val position: GridPosition,
     val answer: Int?,
     val candidates: Set<Int>,
-    val message: String,
 )

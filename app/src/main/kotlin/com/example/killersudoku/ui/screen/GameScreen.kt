@@ -1,5 +1,10 @@
 package com.example.killersudoku.ui.screen
 
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -8,6 +13,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -18,8 +25,11 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.example.killersudoku.R
 import com.example.killersudoku.domain.model.GridPosition
 import com.example.killersudoku.ui.component.GameGrid
 import com.example.killersudoku.ui.component.NumberKeypad
@@ -31,6 +41,7 @@ fun GameScreen(
     state: GameUiState,
     onBack: () -> Unit,
     onCellClick: (GridPosition) -> Unit,
+    onCellsSelected: (Set<GridPosition>) -> Unit,
     onCombination: (String) -> Unit,
     onNumber: (Int) -> Unit,
     onErase: () -> Unit,
@@ -39,21 +50,57 @@ fun GameScreen(
     onSolve: () -> Unit,
     onUndo: () -> Unit,
     onRedo: () -> Unit,
+    onPause: () -> Unit,
+    onResume: () -> Unit,
+    onCompletionDismiss: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    if (state.showCompletionDialog && state.game?.isCompleted == true) {
+        AlertDialog(
+            onDismissRequest = onCompletionDismiss,
+            title = { CompletionTitle() },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        stringResource(
+                            R.string.game_completion_body,
+                            formatDuration(state.elapsedMillis),
+                        ),
+                    )
+                    Text(
+                        text = stringResource(R.string.game_completion_hint),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            },
+            confirmButton = {
+                Button(onClick = onCompletionDismiss) {
+                    Text(stringResource(R.string.action_close))
+                }
+            },
+        )
+    }
+
     Scaffold(
         modifier = modifier.fillMaxSize(),
         topBar = {
             TopAppBar(
-                title = { Text(state.game?.puzzle?.difficulty?.title ?: "游戏") },
+                title = { Text(state.game?.puzzle?.difficulty?.title ?: stringResource(R.string.game_title)) },
                 navigationIcon = {
                     TextButton(onClick = onBack) {
-                        Text("首页")
+                        Text(stringResource(R.string.action_home))
                     }
                 },
                 actions = {
+                    val currentGame = state.game
+                    if (currentGame != null && !currentGame.isCompleted) {
+                        TextButton(onClick = if (state.isPaused) onResume else onPause) {
+                            Text(stringResource(if (state.isPaused) R.string.action_resume else R.string.action_pause))
+                        }
+                    }
                     TextButton(onClick = onCheck, enabled = state.game != null) {
-                        Text("检查")
+                        Text(stringResource(R.string.action_check))
                     }
                 },
             )
@@ -88,7 +135,11 @@ fun GameScreen(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    text = if (game.isCompleted) "已完成" else "进行中",
+                    text = when {
+                        game.isCompleted -> stringResource(R.string.game_completed)
+                        state.isPaused -> stringResource(R.string.game_paused)
+                        else -> stringResource(R.string.game_in_progress)
+                    },
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                     color = if (game.isCompleted) {
@@ -98,18 +149,25 @@ fun GameScreen(
                     },
                 )
                 Text(
-                    text = "笼区 ${game.puzzle.cages.size}",
+                    text = stringResource(R.string.game_timer, formatDuration(state.elapsedMillis)),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+            Text(
+                text = stringResource(R.string.game_cages, game.puzzle.cages.size.toString()),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
 
             GameGrid(
                 game = game,
                 selectedCell = state.selectedCell,
+                selectedCells = state.selectedCells,
                 notes = state.notes,
                 mistakes = state.mistakes,
                 onCellClick = onCellClick,
+                onCellsSelected = onCellsSelected,
                 modifier = Modifier.fillMaxWidth(),
             )
 
@@ -130,7 +188,7 @@ fun GameScreen(
 
             state.message?.let {
                 Text(
-                    text = it,
+                    text = stringResource(it.resId, *it.args.toTypedArray()),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.tertiary,
                 )
@@ -151,9 +209,37 @@ private fun EmptyGame(
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text("还没有游戏")
+        Text(stringResource(R.string.game_empty))
         TextButton(onClick = onBack) {
-            Text("返回首页")
+            Text(stringResource(R.string.action_home))
         }
     }
+}
+
+@Composable
+private fun CompletionTitle() {
+    val transition = rememberInfiniteTransition(label = "completion")
+    val scale = transition.animateFloat(
+        initialValue = 0.94f,
+        targetValue = 1.06f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 650),
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "completionScale",
+    )
+    Text(
+        text = stringResource(R.string.game_completion_title),
+        modifier = Modifier.graphicsLayer {
+            scaleX = scale.value
+            scaleY = scale.value
+        },
+    )
+}
+
+private fun formatDuration(millis: Long): String {
+    val totalSeconds = (millis / 1_000L).coerceAtLeast(0L)
+    val minutes = totalSeconds / 60L
+    val seconds = totalSeconds % 60L
+    return "%02d:%02d".format(minutes, seconds)
 }

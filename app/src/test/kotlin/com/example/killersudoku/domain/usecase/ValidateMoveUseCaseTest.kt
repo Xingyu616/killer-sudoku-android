@@ -48,7 +48,7 @@ class ValidateMoveUseCaseTest {
         }
         val puzzle = Puzzle(
             id = "test",
-            difficulty = Difficulty.EASY,
+            difficulty = Difficulty.LEVEL_2,
             initialGrid = emptyGrid(),
             solutionGrid = solution,
             cages = cages,

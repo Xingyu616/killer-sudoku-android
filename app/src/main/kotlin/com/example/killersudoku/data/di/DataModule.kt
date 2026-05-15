@@ -34,6 +34,7 @@ object DataModule {
             "killer_sudoku.db",
         )
             .addMigrations(AppDatabase.MIGRATION_1_2)
+            .addMigrations(AppDatabase.MIGRATION_2_3)
             .build()
 
     @Provides

@@ -1,12 +1,16 @@
 package com.example.killersudoku.ui
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.example.killersudoku.ui.screen.DifficultyScreen
 import com.example.killersudoku.ui.screen.GameScreen
 import com.example.killersudoku.ui.screen.HomeScreen
@@ -24,11 +28,27 @@ fun KillerSudokuApp(
 ) {
     var screen by rememberSaveable { mutableStateOf(AppScreen.HOME.name) }
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_STOP) {
+                viewModel.pauseGame()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
 
     when (AppScreen.valueOf(screen)) {
         AppScreen.HOME -> HomeScreen(
             state = state,
-            onContinue = { screen = AppScreen.GAME.name },
+            onContinue = {
+                viewModel.resumeGame()
+                screen = AppScreen.GAME.name
+            },
             onNewGame = { screen = AppScreen.DIFFICULTY.name },
         )
 
@@ -42,8 +62,12 @@ fun KillerSudokuApp(
 
         AppScreen.GAME -> GameScreen(
             state = state,
-            onBack = { screen = AppScreen.HOME.name },
+            onBack = {
+                viewModel.pauseGame()
+                screen = AppScreen.HOME.name
+            },
             onCellClick = viewModel::selectCell,
+            onCellsSelected = viewModel::selectCells,
             onCombination = viewModel::toggleCombination,
             onNumber = viewModel::inputNumber,
             onErase = viewModel::eraseSelected,
@@ -52,6 +76,9 @@ fun KillerSudokuApp(
             onSolve = viewModel::solve,
             onUndo = viewModel::undo,
             onRedo = viewModel::redo,
+            onPause = viewModel::pauseGame,
+            onResume = viewModel::resumeGame,
+            onCompletionDismiss = viewModel::dismissCompletionDialog,
         )
     }
 }

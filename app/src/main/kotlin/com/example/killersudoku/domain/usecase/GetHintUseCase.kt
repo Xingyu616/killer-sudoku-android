@@ -21,7 +21,6 @@ class GetHintUseCase @Inject constructor() {
             position = position,
             answer = answer,
             candidates = candidatesFor(game, position),
-            message = "第 ${position.row + 1} 行第 ${position.col + 1} 列可以填 $answer",
         )
     }
 

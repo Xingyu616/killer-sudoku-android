@@ -1,6 +1,6 @@
 # killer-sudoku-android
 
-Version: 1.1.0
+Version: 1.2.0
 
 Killer Sudoku is a single-player Android app built with Kotlin and Jetpack Compose. It generates playable killer sudoku puzzles, supports local progress saving, and provides helper tools such as notes, hints, validation, undo, redo, and answer reveal.
 
@@ -15,13 +15,14 @@ Killer Sudoku is a single-player Android app built with Kotlin and Jetpack Compo
 - Killer cage generation with sum constraints
 - Row, column, box, cage, and duplicate validation
 - Persistent notes, hints, check board, erase, undo, redo, and solve actions
+- Timer, pause/resume, completion history, and best-time statistics
 - White killer sudoku grid with dashed cage outlines and cage-combination helper panel
 - Home, difficulty selection, and game screens
 - Debug APK build support
 
-## Version 1.1.0 Status
+## Version 1.2.0 Status
 
-This release improves puzzle reliability and the core game interaction model. Generated puzzles are checked for a unique solution, notes are saved with the game, and the game board has been redesigned around clearer killer-cage outlines and combination hints.
+This release focuses on game-session polish. The app now tracks elapsed time, supports pause/resume, records completed games locally, shows basic best-time statistics, and cleans related pencil marks after correct entries.
 
 ## Build
 

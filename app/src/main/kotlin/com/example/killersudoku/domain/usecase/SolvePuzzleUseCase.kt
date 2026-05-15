@@ -8,12 +8,17 @@ class SolvePuzzleUseCase @Inject constructor(
 ) {
     operator fun invoke(game: Game): Game {
         val solution = solver.solve(game.puzzle.initialGrid, game.puzzle.cages) ?: game.puzzle.solutionGrid
+        val now = System.currentTimeMillis()
         return game.copy(
             currentGrid = solution,
             notes = emptyMap(),
+            elapsedMillis = game.currentElapsedMillis(now),
+            timerStartedAt = null,
+            pausedAt = null,
+            usedSolve = true,
             isCompleted = true,
-            completedAt = System.currentTimeMillis(),
-            lastModified = System.currentTimeMillis(),
+            completedAt = now,
+            lastModified = now,
         )
     }
 }

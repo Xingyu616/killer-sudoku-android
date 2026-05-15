@@ -12,9 +12,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -22,10 +21,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.killersudoku.R
 
 @Composable
 fun NumberKeypad(
@@ -100,11 +101,11 @@ private fun ActionColumn(
             CompactAction("↷", enabled = canRedo, onClick = onRedo, modifier = Modifier.weight(1f))
         }
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            CompactAction("删", enabled = true, onClick = onErase, modifier = Modifier.weight(1f))
-            CompactAction("?", enabled = true, onClick = onHint, modifier = Modifier.weight(1f))
+            CompactAction(stringResource(R.string.keypad_delete), enabled = true, onClick = onErase, modifier = Modifier.weight(1f))
+            CompactAction(stringResource(R.string.keypad_hint), enabled = true, onClick = onHint, modifier = Modifier.weight(1f))
         }
         CompactAction(
-            label = "答案",
+            label = stringResource(R.string.keypad_answer),
             enabled = true,
             onClick = onSolve,
             modifier = Modifier.fillMaxWidth(),
@@ -145,11 +146,10 @@ private fun CandidatePanel(
     onCombination: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    LazyVerticalGrid(
-        columns = GridCells.Fixed(2),
+    LazyColumn(
         modifier = modifier.height(150.dp),
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         if (cageCombinations.isEmpty()) {
             items(listOf(" ")) { text ->
