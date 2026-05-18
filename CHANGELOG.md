@@ -8,15 +8,19 @@ Gameplay session polish update.
 
 - Added elapsed game timer with pause and resume support.
 - Added local completion history and best-time statistics by difficulty.
+- Added coins, daily check-in rewards, first-win bonuses, and time-tier completion rewards.
 - Added completion dialog with final time.
 - Added automatic pencil-mark cleanup for related cells after correct entries.
-- Added Room database migration to version 3 for timer and history fields.
+- Added Room database migrations to version 4 for timer, history, and reward fields.
 
 ### Changed
 
 - Updated app version to `1.2.0` with `versionCode` 3.
 - Moved user-facing UI labels and messages into string resources.
-- Completion, hint, and solve actions now record helper usage for history.
+- Replaced full answer reveal with a smart hint that fills one useful cell.
+- Adjusted pencil-mark display to match a compact two-line killer sudoku note style.
+- Simplified the home screen into a game-style main menu with compact records, bag, settings, and BGM actions.
+- Completion and smart-hint actions now record helper usage for history.
 
 ### Fixed
 

@@ -7,10 +7,11 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import com.example.killersudoku.data.local.dao.GameDao
 import com.example.killersudoku.data.local.entity.GameEntity
 import com.example.killersudoku.data.local.entity.GameHistoryEntity
+import com.example.killersudoku.data.local.entity.PlayerProgressEntity
 
 @Database(
-    entities = [GameEntity::class, GameHistoryEntity::class],
-    version = 3,
+    entities = [GameEntity::class, GameHistoryEntity::class, PlayerProgressEntity::class],
+    version = 4,
     exportSchema = false,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -66,6 +67,37 @@ abstract class AppDatabase : RoomDatabase() {
                         0
                     FROM games
                     WHERE isCompleted = 1 AND completedAt IS NOT NULL
+                    """.trimIndent(),
+                )
+            }
+        }
+
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE game_history ADD COLUMN rewardCoins INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE game_history ADD COLUMN rewardTier TEXT NOT NULL DEFAULT 'NONE'")
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS player_progress (
+                        id INTEGER NOT NULL,
+                        coins INTEGER NOT NULL,
+                        lastCheckInDate TEXT,
+                        checkInStreak INTEGER NOT NULL,
+                        lastFirstWinDate TEXT,
+                        PRIMARY KEY(id)
+                    )
+                    """.trimIndent(),
+                )
+                db.execSQL(
+                    """
+                    INSERT OR IGNORE INTO player_progress (
+                        id,
+                        coins,
+                        lastCheckInDate,
+                        checkInStreak,
+                        lastFirstWinDate
+                    )
+                    VALUES (1, 0, NULL, 0, NULL)
                     """.trimIndent(),
                 )
             }

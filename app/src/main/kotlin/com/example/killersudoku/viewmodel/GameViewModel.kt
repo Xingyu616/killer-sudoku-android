@@ -9,7 +9,6 @@ import com.example.killersudoku.domain.model.GridPosition
 import com.example.killersudoku.domain.model.valueAt
 import com.example.killersudoku.domain.repository.GameRepository
 import com.example.killersudoku.domain.usecase.GetHintUseCase
-import com.example.killersudoku.domain.usecase.SolvePuzzleUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
@@ -27,7 +26,6 @@ import kotlinx.coroutines.withContext
 class GameViewModel @Inject constructor(
     private val repository: GameRepository,
     private val getHint: GetHintUseCase,
-    private val solvePuzzle: SolvePuzzleUseCase,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(GameUiState())
     val uiState: StateFlow<GameUiState> = _uiState.asStateFlow()
@@ -80,6 +78,11 @@ class GameViewModel @Inject constructor(
             }
         }
         viewModelScope.launch {
+            repository.observePlayerProgress().collect { progress ->
+                _uiState.update { it.copy(progress = progress) }
+            }
+        }
+        viewModelScope.launch {
             while (true) {
                 delay(1_000L)
                 _uiState.update {
@@ -122,6 +125,8 @@ class GameViewModel @Inject constructor(
                     inactiveNumbers = emptyMap(),
                     mistakes = emptySet(),
                     message = null,
+                    completionReward = null,
+                    dailyCheckInReward = null,
                     elapsedMillis = game.currentElapsedMillis(),
                     isPaused = false,
                     showCompletionDialog = false,
@@ -189,7 +194,7 @@ class GameViewModel @Inject constructor(
         val updated = edited.completedIfSolved()
 
         pushUndo(game)
-        save(updated)
+        save(updated, captureReward = updated.isCompleted && !game.isCompleted)
         _uiState.update {
             it.copy(
                 game = updated,
@@ -257,14 +262,16 @@ class GameViewModel @Inject constructor(
             return
         }
         val updated = game
-            .withNotes(game.notes + (hint.position to hint.candidates))
-            .copy(usedHint = true)
+            .withCell(hint.position, hint.answer ?: return)
+            .copy(usedHint = true, isCompleted = false, completedAt = null)
+            .completedIfSolved()
         pushUndo(game)
-        save(updated)
+        save(updated, captureReward = updated.isCompleted && !game.isCompleted)
         _uiState.update {
             it.copy(
                 game = updated,
                 selectedCell = hint.position,
+                selectedCells = setOf(hint.position),
                 notes = updated.notes,
                 cageCombinations = cageCombinationsFor(updated, hint.position),
                 selectedCageId = cageIdFor(updated, hint.position),
@@ -277,6 +284,7 @@ class GameViewModel @Inject constructor(
                     ),
                 ),
                 elapsedMillis = updated.currentElapsedMillis(),
+                showCompletionDialog = updated.isCompleted && !game.isCompleted,
                 canUndo = undoStack.isNotEmpty(),
                 canRedo = redoStack.isNotEmpty(),
             )
@@ -307,26 +315,22 @@ class GameViewModel @Inject constructor(
         }
     }
 
-    fun solve() {
-        val game = _uiState.value.game ?: return
-        if (game.isCompleted || game.pausedAt != null) return
-        pushUndo(game)
-        val solved = solvePuzzle(game.copy(usedSolve = true))
-        save(solved)
-        _uiState.update {
-            it.copy(
-                game = solved,
-                notes = solved.notes,
-                cageCombinations = emptyList(),
-                selectedCageId = null,
-                mistakes = emptySet(),
-                message = UiMessage(R.string.message_solved),
-                elapsedMillis = solved.currentElapsedMillis(),
-                isPaused = false,
-                showCompletionDialog = true,
-                canUndo = undoStack.isNotEmpty(),
-                canRedo = redoStack.isNotEmpty(),
-            )
+    fun smartHint() = requestHint()
+
+    fun claimDailyCheckIn() {
+        viewModelScope.launch {
+            val reward = repository.claimDailyCheckIn()
+            _uiState.update {
+                it.copy(
+                    dailyCheckInReward = reward,
+                    message = reward?.let { result ->
+                        UiMessage(
+                            R.string.message_daily_check_in,
+                            listOf(result.coins.toString(), (result.checkInStreak ?: 1).toString()),
+                        )
+                    } ?: UiMessage(R.string.message_daily_checked),
+                )
+            }
         }
     }
 
@@ -361,7 +365,7 @@ class GameViewModel @Inject constructor(
     }
 
     fun dismissCompletionDialog() {
-        _uiState.update { it.copy(showCompletionDialog = false) }
+        _uiState.update { it.copy(showCompletionDialog = false, completionReward = null) }
     }
 
     fun undo() {
@@ -420,14 +424,20 @@ class GameViewModel @Inject constructor(
         }
     }
 
-    private fun save(game: Game) {
+    private fun save(
+        game: Game,
+        captureReward: Boolean = false,
+    ) {
         val requestId = ++latestSaveRequest
         viewModelScope.launch(Dispatchers.IO) {
             saveMutex.withLock {
                 if (requestId == latestSaveRequest) {
                     repository.saveGame(game)
                     if (game.isCompleted) {
-                        repository.recordCompletedGame(game)
+                        val reward = repository.recordCompletedGame(game)
+                        if (captureReward && reward != null) {
+                            _uiState.update { it.copy(completionReward = reward) }
+                        }
                     }
                     completedSaveRequest = requestId
                 }

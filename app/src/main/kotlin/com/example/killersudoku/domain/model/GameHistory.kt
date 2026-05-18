@@ -8,6 +8,8 @@ data class GameHistory(
     val elapsedMillis: Long,
     val usedHint: Boolean,
     val usedSolve: Boolean,
+    val rewardCoins: Int = 0,
+    val rewardTier: RewardTier = RewardTier.NONE,
 )
 
 data class DifficultyStats(

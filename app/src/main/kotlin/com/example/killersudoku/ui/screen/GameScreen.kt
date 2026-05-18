@@ -72,6 +72,28 @@ fun GameScreen(
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                    state.completionReward?.let { reward ->
+                        Text(
+                            text = stringResource(
+                                R.string.game_completion_reward,
+                                reward.coins.toString(),
+                                reward.tier.title,
+                            ),
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.secondary,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                        if (reward.firstWinBonusCoins > 0) {
+                            Text(
+                                text = stringResource(
+                                    R.string.game_first_win_bonus,
+                                    reward.firstWinBonusCoins.toString(),
+                                ),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.secondary,
+                            )
+                        }
+                    }
                 }
             },
             confirmButton = {

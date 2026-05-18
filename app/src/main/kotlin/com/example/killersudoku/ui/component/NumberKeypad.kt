@@ -105,7 +105,7 @@ private fun ActionColumn(
             CompactAction(stringResource(R.string.keypad_hint), enabled = true, onClick = onHint, modifier = Modifier.weight(1f))
         }
         CompactAction(
-            label = stringResource(R.string.keypad_answer),
+            label = stringResource(R.string.keypad_smart_hint),
             enabled = true,
             onClick = onSolve,
             modifier = Modifier.fillMaxWidth(),

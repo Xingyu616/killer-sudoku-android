@@ -356,35 +356,18 @@ private fun NoteGrid(
     notes: Set<Int>,
     modifier: Modifier = Modifier,
 ) {
-    Column(modifier = modifier) {
-        repeat(3) { row ->
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                repeat(3) { col ->
-                    val value = row * 3 + col + 1
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxHeight(),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        if (value in notes) {
-                            Text(
-                                text = value.toString(),
-                                fontSize = 7.sp,
-                                lineHeight = 7.sp,
-                                color = Color(0xFF1D4ED8),
-                                textAlign = TextAlign.Center,
-                                fontWeight = FontWeight.Medium,
-                            )
-                        }
-                    }
-                }
-            }
-        }
+    Box(
+        modifier = modifier,
+        contentAlignment = Alignment.Center,
+    ) {
+        val rows = notes.sorted().chunked(5)
+        Text(
+            text = rows.joinToString(separator = "\n") { it.joinToString(separator = "") },
+            fontSize = 10.sp,
+            lineHeight = 11.sp,
+            color = Color(0xFF1D4ED8),
+            textAlign = TextAlign.Center,
+            fontWeight = FontWeight.Medium,
+        )
     }
 }

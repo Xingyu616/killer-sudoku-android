@@ -50,6 +50,7 @@ fun KillerSudokuApp(
                 screen = AppScreen.GAME.name
             },
             onNewGame = { screen = AppScreen.DIFFICULTY.name },
+            onDailyCheckIn = viewModel::claimDailyCheckIn,
         )
 
         AppScreen.DIFFICULTY -> DifficultyScreen(
@@ -73,7 +74,7 @@ fun KillerSudokuApp(
             onErase = viewModel::eraseSelected,
             onHint = viewModel::requestHint,
             onCheck = viewModel::checkBoard,
-            onSolve = viewModel::solve,
+            onSolve = viewModel::smartHint,
             onUndo = viewModel::undo,
             onRedo = viewModel::redo,
             onPause = viewModel::pauseGame,

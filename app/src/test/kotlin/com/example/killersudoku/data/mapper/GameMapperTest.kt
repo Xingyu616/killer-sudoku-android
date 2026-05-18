@@ -5,7 +5,10 @@ import com.example.killersudoku.domain.model.Cage
 import com.example.killersudoku.domain.model.Difficulty
 import com.example.killersudoku.domain.model.Game
 import com.example.killersudoku.domain.model.GridPosition
+import com.example.killersudoku.domain.model.PlayerProgress
 import com.example.killersudoku.domain.model.Puzzle
+import com.example.killersudoku.domain.model.RewardResult
+import com.example.killersudoku.domain.model.RewardTier
 import com.example.killersudoku.domain.model.emptyGrid
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -67,7 +70,14 @@ class GameMapperTest {
             completedAt = 3L,
         )
 
-        val history = game.toHistoryEntity()!!.toDomain()
+        val reward = RewardResult(
+            coins = 98,
+            tier = RewardTier.GOLD,
+            baseCoins = 60,
+            timeBonusCoins = 18,
+            firstWinBonusCoins = 20,
+        )
+        val history = game.toHistoryEntity(reward)!!.toDomain()
 
         assertEquals(game.id, history.gameId)
         assertEquals(game.puzzle.difficulty, history.difficulty)
@@ -76,6 +86,8 @@ class GameMapperTest {
         assertEquals(game.elapsedMillis, history.elapsedMillis)
         assertEquals(game.usedHint, history.usedHint)
         assertEquals(game.usedSolve, history.usedSolve)
+        assertEquals(reward.coins, history.rewardCoins)
+        assertEquals(reward.tier, history.rewardTier)
     }
 
     @Test
@@ -93,5 +105,19 @@ class GameMapperTest {
         )
 
         assertEquals(Difficulty.LEVEL_8, entity.toDomain().puzzle.difficulty)
+    }
+
+    @Test
+    fun preservesPlayerProgressWhenMappingThroughEntity() {
+        val progress = PlayerProgress(
+            coins = 240,
+            lastCheckInDate = "2026-05-18",
+            checkInStreak = 4,
+            lastFirstWinDate = "2026-05-18",
+        )
+
+        val restored = progress.toEntity().toDomain()
+
+        assertEquals(progress, restored)
     }
 }

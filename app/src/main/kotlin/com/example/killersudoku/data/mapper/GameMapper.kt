@@ -2,6 +2,7 @@ package com.example.killersudoku.data.mapper
 
 import com.example.killersudoku.data.local.entity.GameEntity
 import com.example.killersudoku.data.local.entity.GameHistoryEntity
+import com.example.killersudoku.data.local.entity.PlayerProgressEntity
 import com.example.killersudoku.domain.model.Cage
 import com.example.killersudoku.domain.model.Difficulty
 import com.example.killersudoku.domain.model.Game
@@ -9,6 +10,9 @@ import com.example.killersudoku.domain.model.GameHistory
 import com.example.killersudoku.domain.model.Grid
 import com.example.killersudoku.domain.model.GridPosition
 import com.example.killersudoku.domain.model.Puzzle
+import com.example.killersudoku.domain.model.PlayerProgress
+import com.example.killersudoku.domain.model.RewardResult
+import com.example.killersudoku.domain.model.RewardTier
 import com.example.killersudoku.domain.model.fromStoredName
 
 fun Game.toEntity(): GameEntity =
@@ -58,7 +62,7 @@ fun GameEntity.toDomain(): Game {
     )
 }
 
-fun Game.toHistoryEntity(): GameHistoryEntity? {
+fun Game.toHistoryEntity(reward: RewardResult? = null): GameHistoryEntity? {
     val completed = completedAt ?: return null
     if (!isCompleted) return null
     return GameHistoryEntity(
@@ -69,6 +73,8 @@ fun Game.toHistoryEntity(): GameHistoryEntity? {
         elapsedMillis = elapsedMillis,
         usedHint = usedHint,
         usedSolve = usedSolve,
+        rewardCoins = reward?.coins ?: 0,
+        rewardTier = reward?.tier?.name ?: RewardTier.NONE.name,
     )
 }
 
@@ -81,6 +87,24 @@ fun GameHistoryEntity.toDomain(): GameHistory =
         elapsedMillis = elapsedMillis,
         usedHint = usedHint,
         usedSolve = usedSolve,
+        rewardCoins = rewardCoins,
+        rewardTier = runCatching { RewardTier.valueOf(rewardTier) }.getOrDefault(RewardTier.NONE),
+    )
+
+fun PlayerProgressEntity.toDomain(): PlayerProgress =
+    PlayerProgress(
+        coins = coins,
+        lastCheckInDate = lastCheckInDate,
+        checkInStreak = checkInStreak,
+        lastFirstWinDate = lastFirstWinDate,
+    )
+
+fun PlayerProgress.toEntity(): PlayerProgressEntity =
+    PlayerProgressEntity(
+        coins = coins,
+        lastCheckInDate = lastCheckInDate,
+        checkInStreak = checkInStreak,
+        lastFirstWinDate = lastFirstWinDate,
     )
 
 fun Grid.encodeGrid(): String =

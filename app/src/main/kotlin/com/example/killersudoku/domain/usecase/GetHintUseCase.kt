@@ -10,10 +10,14 @@ import javax.inject.Inject
 class GetHintUseCase @Inject constructor() {
     operator fun invoke(game: Game, preferredPosition: GridPosition?): Hint? {
         val position = preferredPosition
-            ?.takeIf { !game.puzzle.isGiven(it) && game.currentGrid.valueAt(it) == 0 }
-            ?: game.currentGrid.positions().firstOrNull {
-                !game.puzzle.isGiven(it) && game.currentGrid.valueAt(it) == 0
-            }
+            ?.takeIf { it.isHintable(game) }
+            ?: game.currentGrid.positions()
+                .filter { it.isHintable(game) }
+                .minWithOrNull(
+                    compareBy<GridPosition> { candidatesFor(game, it).size }
+                        .thenBy { it.row }
+                        .thenBy { it.col },
+                )
             ?: return null
 
         val answer = game.puzzle.solutionGrid.valueAt(position)
@@ -23,6 +27,10 @@ class GetHintUseCase @Inject constructor() {
             candidates = candidatesFor(game, position),
         )
     }
+
+    private fun GridPosition.isHintable(game: Game): Boolean =
+        !game.puzzle.isGiven(this) &&
+            game.currentGrid.valueAt(this) != game.puzzle.solutionGrid.valueAt(this)
 
     private fun candidatesFor(game: Game, position: GridPosition): Set<Int> {
         val used = mutableSetOf<Int>()

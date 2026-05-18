@@ -7,6 +7,7 @@ import androidx.room.Query
 import androidx.room.Update
 import com.example.killersudoku.data.local.entity.GameEntity
 import com.example.killersudoku.data.local.entity.GameHistoryEntity
+import com.example.killersudoku.data.local.entity.PlayerProgressEntity
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -26,6 +27,18 @@ interface GameDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertHistory(history: GameHistoryEntity)
 
+    @Query("SELECT * FROM game_history WHERE gameId = :gameId")
+    suspend fun getHistoryByGameId(gameId: Long): GameHistoryEntity?
+
     @Query("SELECT * FROM game_history ORDER BY completedAt DESC")
     fun observeHistory(): Flow<List<GameHistoryEntity>>
+
+    @Query("SELECT * FROM player_progress WHERE id = 1")
+    fun observePlayerProgress(): Flow<PlayerProgressEntity?>
+
+    @Query("SELECT * FROM player_progress WHERE id = 1")
+    suspend fun getPlayerProgress(): PlayerProgressEntity?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertPlayerProgress(progress: PlayerProgressEntity)
 }
