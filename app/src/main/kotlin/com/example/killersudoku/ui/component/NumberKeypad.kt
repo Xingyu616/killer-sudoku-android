@@ -48,9 +48,7 @@ fun NumberKeypad(
     onSolve: () -> Unit,
     onUndo: () -> Unit,
     onRedo: () -> Unit,
-    onPause: () -> Unit,
     onCheck: () -> Unit,
-    onSettings: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var mode by remember { mutableStateOf(KeypadMode.COMBINATION) }
@@ -76,10 +74,7 @@ fun NumberKeypad(
                 cageSelectionTotal = cageSelectionTotal,
                 inactiveCombinations = inactiveCombinations,
                 onCombination = onCombination,
-                onPause = onPause,
                 onCheck = onCheck,
-                onHint = onHint,
-                onSettings = onSettings,
                 modifier = Modifier.weight(1f),
             )
             ActionColumn(
@@ -237,10 +232,7 @@ private fun FeaturePanel(
     cageSelectionTotal: CageSelectionTotal?,
     inactiveCombinations: Set<String>,
     onCombination: (String) -> Unit,
-    onPause: () -> Unit,
     onCheck: () -> Unit,
-    onHint: () -> Unit,
-    onSettings: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     when (mode) {
@@ -253,10 +245,7 @@ private fun FeaturePanel(
         )
 
         KeypadMode.MENU -> MenuPanel(
-            onPause = onPause,
             onCheck = onCheck,
-            onHint = onHint,
-            onSettings = onSettings,
             modifier = modifier,
         )
     }
@@ -334,45 +323,23 @@ private fun CageTotalPanel(
 
 @Composable
 private fun MenuPanel(
-    onPause: () -> Unit,
     onCheck: () -> Unit,
-    onHint: () -> Unit,
-    onSettings: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Column(
+    Box(
         modifier = modifier
             .height(150.dp)
             .fillMaxWidth()
             .background(Color(0xFF263140))
             .border(1.dp, Color.White.copy(alpha = 0.08f))
             .padding(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        contentAlignment = Alignment.Center,
     ) {
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            MenuActionButton(
-                label = stringResource(R.string.action_pause),
-                onClick = onPause,
-                modifier = Modifier.weight(1f),
-            )
-            MenuActionButton(
-                label = stringResource(R.string.action_check),
-                onClick = onCheck,
-                modifier = Modifier.weight(1f),
-            )
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            MenuActionButton(
-                label = stringResource(R.string.keypad_smart_hint),
-                onClick = onHint,
-                modifier = Modifier.weight(1f),
-            )
-            MenuActionButton(
-                label = stringResource(R.string.home_settings),
-                onClick = onSettings,
-                modifier = Modifier.weight(1f),
-            )
-        }
+        MenuActionButton(
+            label = stringResource(R.string.action_check),
+            onClick = onCheck,
+            modifier = Modifier.fillMaxWidth(),
+        )
     }
 }
 

@@ -19,15 +19,11 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
@@ -35,7 +31,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.killersudoku.R
-import com.example.killersudoku.domain.model.BoardTheme
 import com.example.killersudoku.domain.model.GridPosition
 import com.example.killersudoku.ui.component.GameGrid
 import com.example.killersudoku.ui.component.NumberKeypad
@@ -59,15 +54,8 @@ fun GameScreen(
     onPause: () -> Unit,
     onResume: () -> Unit,
     onCompletionDismiss: () -> Unit,
-    onBgmChanged: (Boolean) -> Unit,
-    onSoundChanged: (Boolean) -> Unit,
-    onAutoClearNotesChanged: (Boolean) -> Unit,
-    onErrorHighlightChanged: (Boolean) -> Unit,
-    onSelectTheme: (BoardTheme) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var showSettings by remember { mutableStateOf(false) }
-
     if (state.showCompletionDialog && state.game?.isCompleted == true) {
         AlertDialog(
             onDismissRequest = onCompletionDismiss,
@@ -114,18 +102,6 @@ fun GameScreen(
                     Text(stringResource(R.string.action_close))
                 }
             },
-        )
-    }
-
-    if (showSettings) {
-        GameSettingsDialog(
-            state = state,
-            onBgmChanged = onBgmChanged,
-            onSoundChanged = onSoundChanged,
-            onAutoClearNotesChanged = onAutoClearNotesChanged,
-            onErrorHighlightChanged = onErrorHighlightChanged,
-            onSelectTheme = onSelectTheme,
-            onDismiss = { showSettings = false },
         )
     }
 
@@ -233,9 +209,7 @@ fun GameScreen(
                 onSolve = onSolve,
                 onUndo = onUndo,
                 onRedo = onRedo,
-                onPause = onPause,
                 onCheck = onCheck,
-                onSettings = { showSettings = true },
             )
 
             state.message?.let {
@@ -287,88 +261,6 @@ private fun CompletionTitle() {
             scaleY = scale.value
         },
     )
-}
-
-@Composable
-private fun GameSettingsDialog(
-    state: GameUiState,
-    onBgmChanged: (Boolean) -> Unit,
-    onSoundChanged: (Boolean) -> Unit,
-    onAutoClearNotesChanged: (Boolean) -> Unit,
-    onErrorHighlightChanged: (Boolean) -> Unit,
-    onSelectTheme: (BoardTheme) -> Unit,
-    onDismiss: () -> Unit,
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.home_settings)) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                SettingSwitchRow(
-                    label = stringResource(R.string.home_bgm),
-                    checked = state.progress.bgmEnabled,
-                    onCheckedChange = onBgmChanged,
-                )
-                SettingSwitchRow(
-                    label = stringResource(R.string.settings_sound),
-                    checked = state.progress.soundEnabled,
-                    onCheckedChange = onSoundChanged,
-                )
-                SettingSwitchRow(
-                    label = stringResource(R.string.settings_auto_clear_notes),
-                    checked = state.progress.autoClearNotes,
-                    onCheckedChange = onAutoClearNotesChanged,
-                )
-                SettingSwitchRow(
-                    label = stringResource(R.string.settings_error_highlight),
-                    checked = state.progress.errorHighlightEnabled,
-                    onCheckedChange = onErrorHighlightChanged,
-                )
-                Text(
-                    text = stringResource(R.string.theme_title),
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                BoardTheme.entries.forEach { theme ->
-                    TextButton(onClick = { onSelectTheme(theme) }) {
-                        Text(
-                            text = if (state.progress.selectedTheme == theme) {
-                                stringResource(R.string.theme_selected_named, theme.title)
-                            } else if (theme in state.progress.unlockedThemes) {
-                                stringResource(R.string.theme_select_named, theme.title)
-                            } else {
-                                stringResource(R.string.theme_unlock_named, theme.title, theme.unlockCost.toString())
-                            },
-                        )
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.action_close))
-            }
-        },
-    )
-}
-
-@Composable
-private fun SettingSwitchRow(
-    label: String,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit,
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(label)
-        Switch(
-            checked = checked,
-            onCheckedChange = onCheckedChange,
-        )
-    }
 }
 
 private fun formatDuration(millis: Long): String {

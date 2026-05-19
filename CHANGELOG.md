@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.3.0 - Unreleased
+
+### Added
+
+- Added a compact gameplay guide with killer sudoku rules and starter solving methods.
+- Added guide entry points on the home screen and in the in-game menu.
+- Added system back-button handling for game navigation and exit confirmation.
+- Reworked killer cage outlines to draw continuous dashed paths from cage boundaries.
+
+### Changed
+
+- Updated app version to `1.3.0` with `versionCode` 4.
+- Simplified the in-game menu panel so it only keeps the check action.
+
 ## 1.2.0 - 2026-05-13
 
 Gameplay session polish update.

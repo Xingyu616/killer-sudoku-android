@@ -12,6 +12,7 @@
     <string name="home_no_results">还没有完成记录</string>
     <string name="home_best_times">最佳时间</string>
     <string name="home_games_count">%1$s 局</string>
+    <string name="home_guide">玩法</string>
     <string name="home_records">记录</string>
     <string name="home_bag">背包</string>
     <string name="home_settings">设置</string>
@@ -36,6 +37,10 @@
     <string name="action_pause">暂停</string>
     <string name="action_resume">继续</string>
     <string name="action_close">知道了</string>
+    <string name="action_cancel">取消</string>
+    <string name="action_exit">退出</string>
+    <string name="exit_game_title">退出游戏？</string>
+    <string name="exit_game_body">当前进度会自动保存，下次可以继续。</string>
     <string name="game_title">游戏</string>
     <string name="game_completed">已完成</string>
     <string name="game_paused">已暂停</string>
@@ -58,6 +63,11 @@
     <string name="keypad_cage_total">总和 %1$s</string>
     <string name="keypad_cage_total_detail">完整笼区 %1$s 个，额外已填 %2$s 个</string>
     <string name="keypad_menu_placeholder">菜单功能预留</string>
+    <string name="guide_title">玩法说明</string>
+    <string name="guide_rules_title">规则</string>
+    <string name="guide_rules_body">每行、每列、每个 3x3 宫都要填入 1-9，且不能重复。虚线笼区左上角数字是笼内总和，笼内数字也不能重复。</string>
+    <string name="guide_methods_title">方法</string>
+    <string name="guide_methods_body">先从小笼区和极大、极小总和入手，列出可能组合。再结合同行、同列、同宫排除候选数。整行、整列或整宫总和都是 45，可用它反推跨笼区的缺数。</string>
     <string name="settings_sound">音效</string>
     <string name="settings_auto_clear_notes">自动清理笔记</string>
     <string name="settings_error_highlight">错误高亮</string>

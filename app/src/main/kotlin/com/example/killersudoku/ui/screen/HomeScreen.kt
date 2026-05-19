@@ -34,10 +34,12 @@ import com.example.killersudoku.R
 import com.example.killersudoku.domain.model.BoardTheme
 import com.example.killersudoku.domain.model.DifficultyStats
 import com.example.killersudoku.domain.model.HINT_TICKET_COST
+import com.example.killersudoku.ui.component.GuideDialog
 import com.example.killersudoku.viewmodel.GameUiState
 import java.time.LocalDate
 
 private enum class HomeDialog {
+    GUIDE,
     RECORDS,
     BAG,
     SETTINGS,
@@ -84,6 +86,7 @@ fun HomeScreen(
 
             QuickActions(
                 bgmEnabled = state.progress.bgmEnabled,
+                onGuide = { dialog = HomeDialog.GUIDE },
                 onRecords = { dialog = HomeDialog.RECORDS },
                 onBag = { dialog = HomeDialog.BAG },
                 onSettings = { dialog = HomeDialog.SETTINGS },
@@ -93,6 +96,10 @@ fun HomeScreen(
     }
 
     when (dialog) {
+        HomeDialog.GUIDE -> GuideDialog(
+            onDismiss = { dialog = null },
+        )
+
         HomeDialog.RECORDS -> RecordsDialog(
             state = state,
             onDismiss = { dialog = null },
@@ -224,6 +231,7 @@ private fun MainMenu(
 @Composable
 private fun QuickActions(
     bgmEnabled: Boolean,
+    onGuide: () -> Unit,
     onRecords: () -> Unit,
     onBag: () -> Unit,
     onSettings: () -> Unit,
@@ -234,6 +242,11 @@ private fun QuickActions(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
+        MenuButton(
+            label = stringResource(R.string.home_guide),
+            onClick = onGuide,
+            modifier = Modifier.weight(1f),
+        )
         MenuButton(
             label = stringResource(R.string.home_records),
             onClick = onRecords,

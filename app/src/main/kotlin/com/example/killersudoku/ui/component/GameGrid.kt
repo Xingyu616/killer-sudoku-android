@@ -23,7 +23,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -31,6 +35,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.killersudoku.domain.model.BoardTheme
+import com.example.killersudoku.domain.model.Cage
 import com.example.killersudoku.domain.model.Game
 import com.example.killersudoku.domain.model.GridPosition
 import com.example.killersudoku.domain.model.valueAt
@@ -139,126 +144,30 @@ fun GameGrid(
                 )
             }
 
-            val dash = PathEffect.dashPathEffect(floatArrayOf(5f, 3f), 0f)
-            val inset = 4.dp.toPx()
+            val cageInset = 4.dp.toPx()
+            val cageStroke = Stroke(
+                width = 2.3f,
+                cap = StrokeCap.Round,
+                join = StrokeJoin.Round,
+                pathEffect = PathEffect.dashPathEffect(floatArrayOf(6f, 4f), 0f),
+            )
             game.puzzle.cages.forEach { cage ->
-                val cells = cage.cells.toSet()
-
-                repeat(9) { row ->
-                    val topCols = cells
-                        .filter { it.row == row && GridPosition(row - 1, it.col) !in cells }
-                        .map { it.col }
-                        .sorted()
-                    topCols.consecutiveRuns().forEach { run ->
-                        val y = row * cellHeight + inset
-                        drawLine(
-                            color = colors.cageLine,
-                            start = Offset(run.first * cellWidth + inset, y),
-                            end = Offset((run.last + 1) * cellWidth - inset, y),
-                            strokeWidth = 2.3f,
-                            pathEffect = dash,
-                        )
-                        drawCornerCaps(
-                            Offset(run.first * cellWidth + inset, y),
-                            Offset((run.last + 1) * cellWidth - inset, y),
-                            color = colors.cageLine,
-                        )
-                    }
-
-                    val bottomCols = cells
-                        .filter { it.row == row && GridPosition(row + 1, it.col) !in cells }
-                        .map { it.col }
-                        .sorted()
-                    bottomCols.consecutiveRuns().forEach { run ->
-                        val y = (row + 1) * cellHeight - inset
-                        drawLine(
-                            color = colors.cageLine,
-                            start = Offset(run.first * cellWidth + inset, y),
-                            end = Offset((run.last + 1) * cellWidth - inset, y),
-                            strokeWidth = 2.3f,
-                            pathEffect = dash,
-                        )
-                        drawCornerCaps(
-                            Offset(run.first * cellWidth + inset, y),
-                            Offset((run.last + 1) * cellWidth - inset, y),
-                            color = colors.cageLine,
-                        )
-                    }
-                }
-
-                repeat(9) { col ->
-                    val leftRows = cells
-                        .filter { it.col == col && GridPosition(it.row, col - 1) !in cells }
-                        .map { it.row }
-                        .sorted()
-                    leftRows.consecutiveRuns().forEach { run ->
-                        val x = col * cellWidth + inset
-                        drawLine(
-                            color = colors.cageLine,
-                            start = Offset(x, run.first * cellHeight + inset),
-                            end = Offset(x, (run.last + 1) * cellHeight - inset),
-                            strokeWidth = 2.3f,
-                            pathEffect = dash,
-                        )
-                        drawCornerCaps(
-                            Offset(x, run.first * cellHeight + inset),
-                            Offset(x, (run.last + 1) * cellHeight - inset),
-                            color = colors.cageLine,
-                        )
-                    }
-
-                    val rightRows = cells
-                        .filter { it.col == col && GridPosition(it.row, col + 1) !in cells }
-                        .map { it.row }
-                        .sorted()
-                    rightRows.consecutiveRuns().forEach { run ->
-                        val x = (col + 1) * cellWidth - inset
-                        drawLine(
-                            color = colors.cageLine,
-                            start = Offset(x, run.first * cellHeight + inset),
-                            end = Offset(x, (run.last + 1) * cellHeight - inset),
-                            strokeWidth = 2.3f,
-                            pathEffect = dash,
-                        )
-                        drawCornerCaps(
-                            Offset(x, run.first * cellHeight + inset),
-                            Offset(x, (run.last + 1) * cellHeight - inset),
-                            color = colors.cageLine,
-                        )
-                    }
+                cage.boundaryPaths(
+                    cellWidth = cellWidth,
+                    cellHeight = cellHeight,
+                    inset = cageInset,
+                ).forEach { path ->
+                    drawPath(
+                        path = path,
+                        color = colors.cageLine,
+                        style = cageStroke,
+                    )
                 }
             }
         }
 
         CageLabelLayer(game = game, colors = colors)
     }
-}
-
-private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawCornerCaps(
-    start: Offset,
-    end: Offset,
-    color: Color = Color.Black,
-) {
-    drawCircle(color = color, radius = 1.2f, center = start)
-    drawCircle(color = color, radius = 1.2f, center = end)
-}
-
-private fun List<Int>.consecutiveRuns(): List<IntRange> {
-    if (isEmpty()) return emptyList()
-    val runs = mutableListOf<IntRange>()
-    var start = first()
-    var previous = first()
-    drop(1).forEach { value ->
-        if (value == previous + 1) {
-            previous = value
-        } else {
-            runs += start..previous
-            start = value
-            previous = value
-        }
-    }
-    runs += start..previous
-    return runs
 }
 
 @Composable
@@ -319,6 +228,144 @@ private fun SudokuCell(
             )
         }
     }
+}
+
+private fun Cage.boundaryPaths(
+    cellWidth: Float,
+    cellHeight: Float,
+    inset: Float,
+): List<Path> {
+    val cageCells = cells.toSet()
+    val edges = mutableListOf<BoundaryEdge>()
+
+    cageCells.forEach { cell ->
+        if (GridPosition(cell.row - 1, cell.col) !in cageCells) {
+            edges += BoundaryEdge(
+                start = GridCorner(cell.row, cell.col),
+                end = GridCorner(cell.row, cell.col + 1),
+            )
+        }
+        if (GridPosition(cell.row, cell.col + 1) !in cageCells) {
+            edges += BoundaryEdge(
+                start = GridCorner(cell.row, cell.col + 1),
+                end = GridCorner(cell.row + 1, cell.col + 1),
+            )
+        }
+        if (GridPosition(cell.row + 1, cell.col) !in cageCells) {
+            edges += BoundaryEdge(
+                start = GridCorner(cell.row + 1, cell.col + 1),
+                end = GridCorner(cell.row + 1, cell.col),
+            )
+        }
+        if (GridPosition(cell.row, cell.col - 1) !in cageCells) {
+            edges += BoundaryEdge(
+                start = GridCorner(cell.row + 1, cell.col),
+                end = GridCorner(cell.row, cell.col),
+            )
+        }
+    }
+
+    return edges
+        .orderedLoops()
+        .mapNotNull { loop -> loop.toInsetPath(cellWidth, cellHeight, inset) }
+}
+
+private fun MutableList<BoundaryEdge>.orderedLoops(): List<List<BoundaryEdge>> {
+    val loops = mutableListOf<List<BoundaryEdge>>()
+    while (isNotEmpty()) {
+        val loop = mutableListOf(removeAt(0))
+        val startCorner = loop.first().start
+        var currentCorner = loop.first().end
+        while (currentCorner != startCorner && isNotEmpty()) {
+            val nextIndex = indexOfFirst { it.start == currentCorner }
+            if (nextIndex == -1) break
+            val nextEdge = removeAt(nextIndex)
+            loop += nextEdge
+            currentCorner = nextEdge.end
+        }
+        loops += loop
+    }
+    return loops
+}
+
+private fun List<BoundaryEdge>.toInsetPath(
+    cellWidth: Float,
+    cellHeight: Float,
+    inset: Float,
+): Path? {
+    if (isEmpty()) return null
+
+    val points = indices.map { index ->
+        val previous = this[(index - 1 + size) % size]
+        val current = this[index]
+        insetCornerPoint(
+            corner = current.start,
+            previous = previous.insetLine(cellWidth, cellHeight, inset),
+            current = current.insetLine(cellWidth, cellHeight, inset),
+            cellWidth = cellWidth,
+            cellHeight = cellHeight,
+        )
+    }
+
+    return Path().apply {
+        val firstPoint = points.first()
+        moveTo(firstPoint.x, firstPoint.y)
+        points.drop(1).forEach { point ->
+            lineTo(point.x, point.y)
+        }
+        close()
+    }
+}
+
+private fun insetCornerPoint(
+    corner: GridCorner,
+    previous: InsetLine,
+    current: InsetLine,
+    cellWidth: Float,
+    cellHeight: Float,
+): Offset =
+    when {
+        previous is InsetLine.Horizontal && current is InsetLine.Vertical -> Offset(current.x, previous.y)
+        previous is InsetLine.Vertical && current is InsetLine.Horizontal -> Offset(previous.x, current.y)
+        previous is InsetLine.Horizontal && current is InsetLine.Horizontal -> {
+            Offset(corner.x(cellWidth), current.y)
+        }
+        previous is InsetLine.Vertical && current is InsetLine.Vertical -> {
+            Offset(current.x, corner.y(cellHeight))
+        }
+        else -> Offset(corner.x(cellWidth), corner.y(cellHeight))
+    }
+
+private data class BoundaryEdge(
+    val start: GridCorner,
+    val end: GridCorner,
+) {
+    fun insetLine(
+        cellWidth: Float,
+        cellHeight: Float,
+        inset: Float,
+    ): InsetLine =
+        when {
+            start.row == end.row && start.col < end.col -> InsetLine.Horizontal(start.y(cellHeight) + inset)
+            start.col == end.col && start.row < end.row -> InsetLine.Vertical(start.x(cellWidth) - inset)
+            start.row == end.row && start.col > end.col -> InsetLine.Horizontal(start.y(cellHeight) - inset)
+            start.col == end.col && start.row > end.row -> InsetLine.Vertical(start.x(cellWidth) + inset)
+            else -> error("Boundary edge must be horizontal or vertical.")
+        }
+}
+
+private sealed interface InsetLine {
+    data class Horizontal(val y: Float) : InsetLine
+    data class Vertical(val x: Float) : InsetLine
+}
+
+private data class GridCorner(
+    val row: Int,
+    val col: Int,
+) {
+    fun x(cellWidth: Float): Float = col * cellWidth
+
+    fun y(cellHeight: Float): Float = row * cellHeight
 }
 
 @Composable
