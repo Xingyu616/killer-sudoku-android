@@ -195,6 +195,7 @@ fun GameScreen(
 
             NumberKeypad(
                 cageCombinations = state.cageCombinations,
+                cageSelectionTotal = state.selectedCageTotal,
                 inactiveCombinations = state.selectedCageId?.let { state.inactiveCombinations[it] }.orEmpty(),
                 inactiveNumbers = state.selectedCell?.let { state.inactiveNumbers[it] }.orEmpty(),
                 canUndo = state.canUndo,

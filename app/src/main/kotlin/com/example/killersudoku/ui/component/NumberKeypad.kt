@@ -18,6 +18,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -27,10 +31,12 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.killersudoku.R
+import com.example.killersudoku.viewmodel.CageSelectionTotal
 
 @Composable
 fun NumberKeypad(
     cageCombinations: List<String>,
+    cageSelectionTotal: CageSelectionTotal?,
     inactiveCombinations: Set<String>,
     inactiveNumbers: Set<Int>,
     canUndo: Boolean,
@@ -45,6 +51,7 @@ fun NumberKeypad(
     modifier: Modifier = Modifier,
 ) {
     val panelColor = Color(0xFF202936)
+    var mode by remember { mutableStateOf(KeypadMode.COMBINATION) }
     Surface(
         modifier = modifier
             .fillMaxWidth()
@@ -53,10 +60,24 @@ fun NumberKeypad(
         tonalElevation = 0.dp,
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            ModeRail(
+                selectedMode = mode,
+                onModeChange = { mode = it },
+            )
+
+            FeaturePanel(
+                mode = mode,
+                cageCombinations = cageCombinations,
+                cageSelectionTotal = cageSelectionTotal,
+                inactiveCombinations = inactiveCombinations,
+                onCombination = onCombination,
+                modifier = Modifier.weight(1f),
+            )
+
             ActionColumn(
                 canUndo = canUndo,
                 canRedo = canRedo,
@@ -67,18 +88,65 @@ fun NumberKeypad(
                 onRedo = onRedo,
             )
 
-            CandidatePanel(
-                cageCombinations = cageCombinations,
-                inactiveCombinations = inactiveCombinations,
-                onCombination = onCombination,
-                modifier = Modifier.weight(1f),
-            )
-
             NumberGrid(
                 inactiveNumbers = inactiveNumbers,
                 onNumber = onNumber,
             )
         }
+    }
+}
+
+private enum class KeypadMode {
+    COMBINATION,
+    MENU,
+}
+
+@Composable
+private fun ModeRail(
+    selectedMode: KeypadMode,
+    onModeChange: (KeypadMode) -> Unit,
+) {
+    Column(
+        modifier = Modifier.width(38.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        ModeButton(
+            label = stringResource(R.string.keypad_mode_comb),
+            selected = selectedMode == KeypadMode.COMBINATION,
+            onClick = { onModeChange(KeypadMode.COMBINATION) },
+            modifier = Modifier.weight(1f),
+        )
+        ModeButton(
+            label = stringResource(R.string.keypad_mode_menu),
+            selected = selectedMode == KeypadMode.MENU,
+            onClick = { onModeChange(KeypadMode.MENU) },
+            modifier = Modifier.weight(1f),
+        )
+    }
+}
+
+@Composable
+private fun ModeButton(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(if (selected) Color(0xFF324156) else Color(0xFF1A222E))
+            .border(1.dp, Color.White.copy(alpha = if (selected) 0.18f else 0.08f))
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = label,
+            color = if (selected) Color.White else Color.White.copy(alpha = 0.58f),
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+            textAlign = TextAlign.Center,
+        )
     }
 }
 
@@ -93,14 +161,14 @@ private fun ActionColumn(
     onRedo: () -> Unit,
 ) {
     Column(
-        modifier = Modifier.width(76.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
+        modifier = Modifier.width(54.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             CompactAction("↶", enabled = canUndo, onClick = onUndo, modifier = Modifier.weight(1f))
             CompactAction("↷", enabled = canRedo, onClick = onRedo, modifier = Modifier.weight(1f))
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             CompactAction(stringResource(R.string.keypad_delete), enabled = true, onClick = onErase, modifier = Modifier.weight(1f))
             CompactAction(stringResource(R.string.keypad_hint), enabled = true, onClick = onHint, modifier = Modifier.weight(1f))
         }
@@ -109,7 +177,7 @@ private fun ActionColumn(
             enabled = true,
             onClick = onSolve,
             modifier = Modifier.fillMaxWidth(),
-            height = 70,
+            height = 78,
         )
     }
 }
@@ -140,30 +208,115 @@ private fun CompactAction(
 }
 
 @Composable
-private fun CandidatePanel(
+private fun FeaturePanel(
+    mode: KeypadMode,
     cageCombinations: List<String>,
+    cageSelectionTotal: CageSelectionTotal?,
     inactiveCombinations: Set<String>,
     onCombination: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    LazyColumn(
-        modifier = modifier.height(150.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        if (cageCombinations.isEmpty()) {
-            items(listOf(" ")) { text ->
-                CombinationBox(text = text, isInactive = false, onClick = {})
-            }
-        } else {
-            items(cageCombinations) { combination ->
-                CombinationBox(
-                    text = combination,
-                    isInactive = combination in inactiveCombinations,
-                    onClick = { onCombination(combination) },
-                )
+    when (mode) {
+        KeypadMode.COMBINATION -> CandidatePanel(
+            cageCombinations = cageCombinations,
+            cageSelectionTotal = cageSelectionTotal,
+            inactiveCombinations = inactiveCombinations,
+            onCombination = onCombination,
+            modifier = modifier,
+        )
+
+        KeypadMode.MENU -> MenuPanel(modifier = modifier)
+    }
+}
+
+@Composable
+private fun CandidatePanel(
+    cageCombinations: List<String>,
+    cageSelectionTotal: CageSelectionTotal?,
+    inactiveCombinations: Set<String>,
+    onCombination: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    if (cageSelectionTotal != null) {
+        CageTotalPanel(
+            total = cageSelectionTotal,
+            modifier = modifier.height(150.dp),
+        )
+    } else {
+        LazyColumn(
+            modifier = modifier.height(150.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            if (cageCombinations.isNotEmpty()) {
+                items(cageCombinations) { combination ->
+                    CombinationBox(
+                        text = combination,
+                        isInactive = combination in inactiveCombinations,
+                        onClick = { onCombination(combination) },
+                    )
+                }
             }
         }
+    }
+}
+
+@Composable
+private fun CageTotalPanel(
+    total: CageSelectionTotal,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(Color(0xFF263140))
+            .border(1.dp, Color.White.copy(alpha = 0.08f))
+            .padding(10.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.keypad_cage_total, total.totalSum.toString()),
+                color = Color(0xFFFFEE75),
+                fontSize = 24.sp,
+                fontWeight = FontWeight.SemiBold,
+                textAlign = TextAlign.Center,
+            )
+            Text(
+                text = stringResource(
+                    R.string.keypad_cage_total_detail,
+                    total.completeCageCount.toString(),
+                    total.extraFilledCount.toString(),
+                ),
+                color = Color.White.copy(alpha = 0.62f),
+                style = MaterialTheme.typography.labelMedium,
+                textAlign = TextAlign.Center,
+            )
+        }
+    }
+}
+
+@Composable
+private fun MenuPanel(
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier
+            .height(150.dp)
+            .fillMaxWidth()
+            .background(Color(0xFF263140))
+            .border(1.dp, Color.White.copy(alpha = 0.08f)),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = stringResource(R.string.keypad_menu_placeholder),
+            color = Color.White.copy(alpha = 0.62f),
+            style = MaterialTheme.typography.bodyMedium,
+            textAlign = TextAlign.Center,
+        )
     }
 }
 
@@ -198,13 +351,13 @@ private fun NumberGrid(
     onNumber: (Int) -> Unit,
 ) {
     Column(
-        modifier = Modifier.width(150.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
+        modifier = Modifier.width(126.dp),
+        verticalArrangement = Arrangement.spacedBy(3.dp),
     ) {
         repeat(3) { row ->
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                horizontalArrangement = Arrangement.spacedBy(3.dp),
             ) {
                 repeat(3) { col ->
                     val number = row * 3 + col + 1
@@ -227,7 +380,7 @@ private fun NumberButton(
 ) {
     Box(
         modifier = Modifier
-            .size(46.dp)
+            .size(40.dp)
             .background(if (isInactive) Color(0xFF171D27) else Color(0xFF253040))
             .border(1.dp, Color.White.copy(alpha = 0.10f))
             .clickable(onClick = onClick),

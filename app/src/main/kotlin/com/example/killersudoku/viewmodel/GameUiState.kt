@@ -17,6 +17,7 @@ data class GameUiState(
     val selectedCells: Set<GridPosition> = emptySet(),
     val notes: Map<GridPosition, Set<Int>> = emptyMap(),
     val cageCombinations: List<String> = emptyList(),
+    val selectedCageTotal: CageSelectionTotal? = null,
     val selectedCageId: Int? = null,
     val inactiveCombinations: Map<Int, Set<String>> = emptyMap(),
     val inactiveNumbers: Map<GridPosition, Set<Int>> = emptyMap(),
@@ -27,4 +28,10 @@ data class GameUiState(
     val showCompletionDialog: Boolean = false,
     val canUndo: Boolean = false,
     val canRedo: Boolean = false,
+)
+
+data class CageSelectionTotal(
+    val totalSum: Int,
+    val completeCageCount: Int,
+    val extraFilledCount: Int,
 )

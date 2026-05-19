@@ -48,6 +48,11 @@
     <string name="keypad_delete">删</string>
     <string name="keypad_hint">?</string>
     <string name="keypad_smart_hint">提示</string>
+    <string name="keypad_mode_comb">组合</string>
+    <string name="keypad_mode_menu">菜单</string>
+    <string name="keypad_cage_total">总和 %1$s</string>
+    <string name="keypad_cage_total_detail">完整笼区 %1$s 个，额外已填 %2$s 个</string>
+    <string name="keypad_menu_placeholder">菜单功能预留</string>
     <string name="message_given_cell">这是题目给出的数字</string>
     <string name="message_completed">完成！这一局很漂亮。</string>
     <string name="message_no_hint">没有可提示的空格</string>

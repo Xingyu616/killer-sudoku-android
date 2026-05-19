@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -26,6 +27,7 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.killersudoku.domain.model.Game
@@ -94,7 +96,6 @@ fun GameGrid(
                             value = game.currentGrid.valueAt(position),
                             notes = notes[position].orEmpty(),
                             isGiven = game.puzzle.isGiven(position),
-                            hasCageLabel = cage?.isTopLeft(position) == true,
                             isSelected = position in visibleSelection || selectedCell == position,
                             isRelated = selectedCell?.let {
                                 position !in visibleSelection &&
@@ -256,7 +257,6 @@ private fun SudokuCell(
     value: Int,
     notes: Set<Int>,
     isGiven: Boolean,
-    hasCageLabel: Boolean,
     isSelected: Boolean,
     isRelated: Boolean,
     isError: Boolean,
@@ -301,7 +301,7 @@ private fun SudokuCell(
                     .fillMaxSize()
                     .padding(
                         start = 3.dp,
-                        top = if (hasCageLabel) 10.dp else 3.dp,
+                        top = 3.dp,
                         end = 3.dp,
                         bottom = 3.dp,
                     ),
@@ -329,7 +329,7 @@ private fun CageLabelLayer(
                         modifier = Modifier
                             .weight(1f)
                             .fillMaxHeight()
-                            .padding(start = 3.dp, top = 5.dp),
+                            .padding(start = 3.dp, top = 2.dp),
                         contentAlignment = Alignment.TopStart,
                     ) {
                         if (cage?.isTopLeft(position) == true) {
@@ -356,18 +356,33 @@ private fun NoteGrid(
     notes: Set<Int>,
     modifier: Modifier = Modifier,
 ) {
-    Box(
-        modifier = modifier,
-        contentAlignment = Alignment.Center,
+    val values = notes.sorted()
+    val firstRow = values.take(5).joinToString(separator = "")
+    val secondRow = values.drop(5).take(4).joinToString(separator = "")
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        val rows = notes.sorted().chunked(5)
-        Text(
-            text = rows.joinToString(separator = "\n") { it.joinToString(separator = "") },
-            fontSize = 10.sp,
-            lineHeight = 11.sp,
-            color = Color(0xFF1D4ED8),
-            textAlign = TextAlign.Center,
-            fontWeight = FontWeight.Medium,
-        )
+        NoteRow(text = firstRow)
+        if (secondRow.isNotEmpty()) {
+            NoteRow(text = secondRow)
+        }
     }
+}
+
+@Composable
+private fun NoteRow(text: String) {
+    Text(
+        text = text,
+        modifier = Modifier.fillMaxWidth(),
+        fontSize = 9.sp,
+        lineHeight = 10.sp,
+        color = Color(0xFF1D4ED8),
+        textAlign = TextAlign.Center,
+        fontWeight = FontWeight.Medium,
+        maxLines = 1,
+        softWrap = false,
+        overflow = TextOverflow.Clip,
+    )
 }

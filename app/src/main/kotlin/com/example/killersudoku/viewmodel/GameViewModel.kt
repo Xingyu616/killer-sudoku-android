@@ -51,10 +51,10 @@ class GameViewModel @Inject constructor(
                         (completedSaveRequest < latestSaveRequest || currentGame.lastModified >= game.lastModified)
                     val nextGame = if (shouldKeepCurrentGame) currentGame else game
                     val selectedCell = it.selectedCell?.takeIf { selected ->
-                        nextGame?.puzzle?.isGiven(selected) == false
+                        selected.row in 0..8 && selected.col in 0..8
                     }
                     val selectedCells = it.selectedCells.filterTo(mutableSetOf()) { selected ->
-                        nextGame?.puzzle?.isGiven(selected) == false
+                        selected.row in 0..8 && selected.col in 0..8
                     }
                     it.copy(
                         isLoading = false,
@@ -62,8 +62,9 @@ class GameViewModel @Inject constructor(
                         selectedCell = selectedCell,
                         selectedCells = selectedCells,
                         notes = nextGame?.notes.orEmpty(),
-                        cageCombinations = cageCombinationsFor(nextGame, selectedCell),
-                        selectedCageId = cageIdFor(nextGame, selectedCell),
+                        cageCombinations = cageCombinationsForSelection(nextGame, selectedCell, selectedCells),
+                        selectedCageTotal = selectedCageTotalFor(nextGame, selectedCells),
+                        selectedCageId = if (selectedCells.size > 1) null else cageIdFor(nextGame, selectedCell),
                         elapsedMillis = nextGame?.currentElapsedMillis().orZero(),
                         isPaused = nextGame?.pausedAt != null,
                         canUndo = undoStack.isNotEmpty(),
@@ -120,6 +121,7 @@ class GameViewModel @Inject constructor(
                     selectedCells = emptySet(),
                     notes = emptyMap(),
                     cageCombinations = emptyList(),
+                    selectedCageTotal = null,
                     selectedCageId = null,
                     inactiveCombinations = emptyMap(),
                     inactiveNumbers = emptyMap(),
@@ -146,6 +148,7 @@ class GameViewModel @Inject constructor(
                     selectedCell = position,
                     selectedCells = emptySet(),
                     cageCombinations = cageCombinationsFor(game, position),
+                    selectedCageTotal = null,
                     selectedCageId = cageIdFor(game, position),
                     message = UiMessage(R.string.message_given_cell),
                 )
@@ -156,6 +159,7 @@ class GameViewModel @Inject constructor(
                     selectedCell = position,
                     selectedCells = setOf(position),
                     cageCombinations = cageCombinationsFor(game, position),
+                    selectedCageTotal = null,
                     selectedCageId = cageIdFor(game, position),
                     message = null,
                 )
@@ -166,16 +170,18 @@ class GameViewModel @Inject constructor(
     fun selectCells(positions: Set<GridPosition>) {
         val game = _uiState.value.game ?: return
         if (game.isCompleted || game.pausedAt != null) return
-        val editable = positions
-            .filterNot { game.puzzle.isGiven(it) }
+        val selected = positions
+            .filter { it.row in 0..8 && it.col in 0..8 }
             .toSet()
+        val editable = selected.filterNot { game.puzzle.isGiven(it) }
         val primary = editable.sortedWith(compareBy<GridPosition> { it.row }.thenBy { it.col }).firstOrNull()
         _uiState.update {
             it.copy(
                 selectedCell = primary,
-                selectedCells = editable,
-                cageCombinations = cageCombinationsFor(game, primary),
-                selectedCageId = cageIdFor(game, primary),
+                selectedCells = selected,
+                cageCombinations = emptyList(),
+                selectedCageTotal = selectedCageTotalFor(game, selected),
+                selectedCageId = null,
                 message = null,
             )
         }
@@ -200,7 +206,8 @@ class GameViewModel @Inject constructor(
                 game = updated,
                 mistakes = it.mistakes - positions,
                 notes = updated.notes,
-                cageCombinations = cageCombinationsFor(updated, it.selectedCell),
+                cageCombinations = cageCombinationsForSelection(updated, it.selectedCell, it.selectedCells),
+                selectedCageTotal = selectedCageTotalFor(updated, it.selectedCells),
                 inactiveNumbers = positions.fold(it.inactiveNumbers) { current, position ->
                     current.toggle(position, value)
                 },
@@ -243,7 +250,8 @@ class GameViewModel @Inject constructor(
             it.copy(
                 game = updated,
                 notes = updated.notes,
-                cageCombinations = cageCombinationsFor(updated, it.selectedCell),
+                cageCombinations = cageCombinationsForSelection(updated, it.selectedCell, it.selectedCells),
+                selectedCageTotal = selectedCageTotalFor(updated, it.selectedCells),
                 mistakes = it.mistakes - positions,
                 inactiveNumbers = it.inactiveNumbers - positions,
                 elapsedMillis = updated.currentElapsedMillis(),
@@ -274,6 +282,7 @@ class GameViewModel @Inject constructor(
                 selectedCells = setOf(hint.position),
                 notes = updated.notes,
                 cageCombinations = cageCombinationsFor(updated, hint.position),
+                selectedCageTotal = null,
                 selectedCageId = cageIdFor(updated, hint.position),
                 message = UiMessage(
                     R.string.message_hint,
@@ -378,8 +387,9 @@ class GameViewModel @Inject constructor(
             it.copy(
                 game = previous,
                 notes = previous.notes,
-                cageCombinations = cageCombinationsFor(previous, it.selectedCell),
-                selectedCageId = cageIdFor(previous, it.selectedCell),
+                cageCombinations = cageCombinationsForSelection(previous, it.selectedCell, it.selectedCells),
+                selectedCageTotal = selectedCageTotalFor(previous, it.selectedCells),
+                selectedCageId = if (it.selectedCells.size > 1) null else cageIdFor(previous, it.selectedCell),
                 inactiveNumbers = emptyMap(),
                 mistakes = emptySet(),
                 message = null,
@@ -402,8 +412,9 @@ class GameViewModel @Inject constructor(
             it.copy(
                 game = next,
                 notes = next.notes,
-                cageCombinations = cageCombinationsFor(next, it.selectedCell),
-                selectedCageId = cageIdFor(next, it.selectedCell),
+                cageCombinations = cageCombinationsForSelection(next, it.selectedCell, it.selectedCells),
+                selectedCageTotal = selectedCageTotalFor(next, it.selectedCells),
+                selectedCageId = if (it.selectedCells.size > 1) null else cageIdFor(next, it.selectedCell),
                 inactiveNumbers = emptyMap(),
                 mistakes = emptySet(),
                 message = null,
@@ -450,6 +461,37 @@ class GameViewModel @Inject constructor(
         val cage = game.puzzle.cageFor(position) ?: return emptyList()
         return combinationsFor(cage.targetSum, cage.cells.size)
             .map { values -> values.joinToString(separator = "") }
+    }
+
+    private fun cageCombinationsForSelection(
+        game: Game?,
+        position: GridPosition?,
+        selectedCells: Set<GridPosition>,
+    ): List<String> =
+        if (selectedCells.size > 1) emptyList() else cageCombinationsFor(game, position)
+
+    private fun selectedCageTotalFor(
+        game: Game?,
+        selectedCells: Set<GridPosition>,
+    ): CageSelectionTotal? {
+        if (game == null || selectedCells.size <= 1) return null
+        val completeCages = game.puzzle.cages.filter { cage ->
+            val cageCells = cage.cells.toSet()
+            cageCells.isNotEmpty() && selectedCells.containsAll(cageCells)
+        }
+        if (completeCages.isEmpty()) return null
+
+        val completeCageCells = completeCages
+            .flatMap { cage -> cage.cells }
+            .toSet()
+        val extraValues = (selectedCells - completeCageCells)
+            .map { position -> game.currentGrid.valueAt(position) }
+            .filter { value -> value in 1..9 }
+        return CageSelectionTotal(
+            totalSum = completeCages.sumOf { cage -> cage.targetSum } + extraValues.sum(),
+            completeCageCount = completeCages.size,
+            extraFilledCount = extraValues.size,
+        )
     }
 
     private fun cageIdFor(game: Game?, position: GridPosition?): Int? =
