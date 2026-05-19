@@ -30,6 +30,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.killersudoku.domain.model.BoardTheme
 import com.example.killersudoku.domain.model.Game
 import com.example.killersudoku.domain.model.GridPosition
 import com.example.killersudoku.domain.model.valueAt
@@ -41,18 +42,20 @@ fun GameGrid(
     selectedCells: Set<GridPosition>,
     notes: Map<GridPosition, Set<Int>>,
     mistakes: Set<GridPosition>,
+    boardTheme: BoardTheme,
     onCellClick: (GridPosition) -> Unit,
     onCellsSelected: (Set<GridPosition>) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val gridLineColor = MaterialTheme.colorScheme.onSurface
+    val colors = boardTheme.gridColors()
+    val gridLineColor = colors.line
     val dragSelection = remember { mutableStateOf(emptySet<GridPosition>()) }
     val visibleSelection = selectedCells + dragSelection.value
     Box(
         modifier = modifier
             .aspectRatio(1f)
-            .background(Color.White)
-            .border(2.dp, MaterialTheme.colorScheme.onSurface)
+            .background(colors.cell)
+            .border(2.dp, colors.line)
             .pointerInput(Unit) {
                 fun Offset.toGridPosition(): GridPosition? {
                     if (x !in 0f..size.width.toFloat() || y !in 0f..size.height.toFloat()) return null
@@ -106,6 +109,7 @@ fun GameGrid(
                                         )
                             } == true,
                             isError = position in mistakes,
+                            colors = colors,
                             onClick = { onCellClick(position) },
                             modifier = Modifier
                                 .weight(1f)
@@ -148,7 +152,7 @@ fun GameGrid(
                     topCols.consecutiveRuns().forEach { run ->
                         val y = row * cellHeight + inset
                         drawLine(
-                            color = Color.Black,
+                            color = colors.cageLine,
                             start = Offset(run.first * cellWidth + inset, y),
                             end = Offset((run.last + 1) * cellWidth - inset, y),
                             strokeWidth = 2.3f,
@@ -157,6 +161,7 @@ fun GameGrid(
                         drawCornerCaps(
                             Offset(run.first * cellWidth + inset, y),
                             Offset((run.last + 1) * cellWidth - inset, y),
+                            color = colors.cageLine,
                         )
                     }
 
@@ -167,7 +172,7 @@ fun GameGrid(
                     bottomCols.consecutiveRuns().forEach { run ->
                         val y = (row + 1) * cellHeight - inset
                         drawLine(
-                            color = Color.Black,
+                            color = colors.cageLine,
                             start = Offset(run.first * cellWidth + inset, y),
                             end = Offset((run.last + 1) * cellWidth - inset, y),
                             strokeWidth = 2.3f,
@@ -176,6 +181,7 @@ fun GameGrid(
                         drawCornerCaps(
                             Offset(run.first * cellWidth + inset, y),
                             Offset((run.last + 1) * cellWidth - inset, y),
+                            color = colors.cageLine,
                         )
                     }
                 }
@@ -188,7 +194,7 @@ fun GameGrid(
                     leftRows.consecutiveRuns().forEach { run ->
                         val x = col * cellWidth + inset
                         drawLine(
-                            color = Color.Black,
+                            color = colors.cageLine,
                             start = Offset(x, run.first * cellHeight + inset),
                             end = Offset(x, (run.last + 1) * cellHeight - inset),
                             strokeWidth = 2.3f,
@@ -197,6 +203,7 @@ fun GameGrid(
                         drawCornerCaps(
                             Offset(x, run.first * cellHeight + inset),
                             Offset(x, (run.last + 1) * cellHeight - inset),
+                            color = colors.cageLine,
                         )
                     }
 
@@ -207,7 +214,7 @@ fun GameGrid(
                     rightRows.consecutiveRuns().forEach { run ->
                         val x = (col + 1) * cellWidth - inset
                         drawLine(
-                            color = Color.Black,
+                            color = colors.cageLine,
                             start = Offset(x, run.first * cellHeight + inset),
                             end = Offset(x, (run.last + 1) * cellHeight - inset),
                             strokeWidth = 2.3f,
@@ -216,22 +223,24 @@ fun GameGrid(
                         drawCornerCaps(
                             Offset(x, run.first * cellHeight + inset),
                             Offset(x, (run.last + 1) * cellHeight - inset),
+                            color = colors.cageLine,
                         )
                     }
                 }
             }
         }
 
-        CageLabelLayer(game = game)
+        CageLabelLayer(game = game, colors = colors)
     }
 }
 
 private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawCornerCaps(
     start: Offset,
     end: Offset,
+    color: Color = Color.Black,
 ) {
-    drawCircle(color = Color.Black, radius = 1.2f, center = start)
-    drawCircle(color = Color.Black, radius = 1.2f, center = end)
+    drawCircle(color = color, radius = 1.2f, center = start)
+    drawCircle(color = color, radius = 1.2f, center = end)
 }
 
 private fun List<Int>.consecutiveRuns(): List<IntRange> {
@@ -260,14 +269,15 @@ private fun SudokuCell(
     isSelected: Boolean,
     isRelated: Boolean,
     isError: Boolean,
+    colors: GridColors,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val background = when {
-        isError -> Color(0xFFFFECEC)
-        isSelected -> Color(0xFFF4C4F2)
-        isRelated -> Color.White
-        else -> Color.White
+        isError -> colors.error
+        isSelected -> colors.selected
+        isRelated -> colors.related
+        else -> colors.cell
     }
 
     Box(
@@ -275,7 +285,7 @@ private fun SudokuCell(
             .background(background)
             .border(
                 width = if (isSelected) 1.5.dp else 0.3.dp,
-                color = if (isSelected) Color(0xFFAF4CA8) else Color.Black.copy(alpha = 0.18f),
+                color = if (isSelected) colors.selectionLine else colors.line.copy(alpha = 0.18f),
             )
             .clickable(onClick = onClick)
             .padding(2.dp),
@@ -286,9 +296,9 @@ private fun SudokuCell(
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = if (isGiven) FontWeight.Bold else FontWeight.Normal,
                 color = if (isGiven) {
-                    Color.Black
+                    colors.givenText
                 } else {
-                    Color(0xFF1D4ED8)
+                    colors.userText
                 },
                 modifier = Modifier.align(Alignment.Center),
                 textAlign = TextAlign.Center,
@@ -296,6 +306,7 @@ private fun SudokuCell(
         } else if (notes.isNotEmpty()) {
             NoteGrid(
                 notes = notes,
+                color = colors.userText,
                 modifier = Modifier
                     .align(Alignment.Center)
                     .fillMaxSize()
@@ -313,6 +324,7 @@ private fun SudokuCell(
 @Composable
 private fun CageLabelLayer(
     game: Game,
+    colors: GridColors,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier.fillMaxSize()) {
@@ -338,9 +350,9 @@ private fun CageLabelLayer(
                                 style = MaterialTheme.typography.labelSmall,
                                 fontSize = 7.sp,
                                 lineHeight = 7.sp,
-                                color = Color.Black,
+                                color = colors.labelText,
                                 modifier = Modifier
-                                    .background(Color.White)
+                                    .background(colors.cell)
                                     .padding(horizontal = 1.dp, vertical = 0.dp),
                             )
                         }
@@ -354,6 +366,7 @@ private fun CageLabelLayer(
 @Composable
 private fun NoteGrid(
     notes: Set<Int>,
+    color: Color,
     modifier: Modifier = Modifier,
 ) {
     val values = notes.sorted()
@@ -364,21 +377,24 @@ private fun NoteGrid(
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        NoteRow(text = firstRow)
+        NoteRow(text = firstRow, color = color)
         if (secondRow.isNotEmpty()) {
-            NoteRow(text = secondRow)
+            NoteRow(text = secondRow, color = color)
         }
     }
 }
 
 @Composable
-private fun NoteRow(text: String) {
+private fun NoteRow(
+    text: String,
+    color: Color,
+) {
     Text(
         text = text,
         modifier = Modifier.fillMaxWidth(),
         fontSize = 9.sp,
         lineHeight = 10.sp,
-        color = Color(0xFF1D4ED8),
+        color = color,
         textAlign = TextAlign.Center,
         fontWeight = FontWeight.Medium,
         maxLines = 1,
@@ -386,3 +402,71 @@ private fun NoteRow(text: String) {
         overflow = TextOverflow.Clip,
     )
 }
+
+private data class GridColors(
+    val cell: Color,
+    val related: Color,
+    val selected: Color,
+    val error: Color,
+    val line: Color,
+    val cageLine: Color,
+    val selectionLine: Color,
+    val givenText: Color,
+    val userText: Color,
+    val labelText: Color,
+)
+
+private fun BoardTheme.gridColors(): GridColors =
+    when (this) {
+        BoardTheme.DEFAULT -> GridColors(
+            cell = Color.White,
+            related = Color.White,
+            selected = Color(0xFFF4C4F2),
+            error = Color(0xFFFFECEC),
+            line = Color.Black,
+            cageLine = Color.Black,
+            selectionLine = Color(0xFFAF4CA8),
+            givenText = Color.Black,
+            userText = Color(0xFF1D4ED8),
+            labelText = Color.Black,
+        )
+
+        BoardTheme.EYE_CARE -> GridColors(
+            cell = Color(0xFFF4FAEA),
+            related = Color(0xFFEAF3DE),
+            selected = Color(0xFFDCEFC9),
+            error = Color(0xFFFFE4DA),
+            line = Color(0xFF31422B),
+            cageLine = Color(0xFF31422B),
+            selectionLine = Color(0xFF5C8F3E),
+            givenText = Color(0xFF172018),
+            userText = Color(0xFF1F6D4C),
+            labelText = Color(0xFF172018),
+        )
+
+        BoardTheme.NIGHT -> GridColors(
+            cell = Color(0xFF1D2430),
+            related = Color(0xFF243041),
+            selected = Color(0xFF384563),
+            error = Color(0xFF55313A),
+            line = Color(0xFFE5EDF7),
+            cageLine = Color(0xFFE5EDF7),
+            selectionLine = Color(0xFF8DB6FF),
+            givenText = Color(0xFFF6F8FB),
+            userText = Color(0xFF8DB6FF),
+            labelText = Color(0xFFF6F8FB),
+        )
+
+        BoardTheme.PAPER -> GridColors(
+            cell = Color(0xFFFAF6EC),
+            related = Color(0xFFF1E8D7),
+            selected = Color(0xFFE8D7B9),
+            error = Color(0xFFFFE0D7),
+            line = Color(0xFF3F3428),
+            cageLine = Color(0xFF3F3428),
+            selectionLine = Color(0xFF9B6B3D),
+            givenText = Color(0xFF241B14),
+            userText = Color(0xFF245C7C),
+            labelText = Color(0xFF241B14),
+        )
+    }

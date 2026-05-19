@@ -48,15 +48,17 @@ fun NumberKeypad(
     onSolve: () -> Unit,
     onUndo: () -> Unit,
     onRedo: () -> Unit,
+    onPause: () -> Unit,
+    onCheck: () -> Unit,
+    onSettings: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val panelColor = Color(0xFF202936)
     var mode by remember { mutableStateOf(KeypadMode.COMBINATION) }
     Surface(
         modifier = modifier
             .fillMaxWidth()
             .height(166.dp),
-        color = panelColor,
+        color = Color(0xFF202936),
         tonalElevation = 0.dp,
     ) {
         Row(
@@ -68,16 +70,18 @@ fun NumberKeypad(
                 selectedMode = mode,
                 onModeChange = { mode = it },
             )
-
             FeaturePanel(
                 mode = mode,
                 cageCombinations = cageCombinations,
                 cageSelectionTotal = cageSelectionTotal,
                 inactiveCombinations = inactiveCombinations,
                 onCombination = onCombination,
+                onPause = onPause,
+                onCheck = onCheck,
+                onHint = onHint,
+                onSettings = onSettings,
                 modifier = Modifier.weight(1f),
             )
-
             ActionColumn(
                 canUndo = canUndo,
                 canRedo = canRedo,
@@ -87,7 +91,6 @@ fun NumberKeypad(
                 onUndo = onUndo,
                 onRedo = onRedo,
             )
-
             NumberGrid(
                 inactiveNumbers = inactiveNumbers,
                 onNumber = onNumber,
@@ -165,12 +168,32 @@ private fun ActionColumn(
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            CompactAction("↶", enabled = canUndo, onClick = onUndo, modifier = Modifier.weight(1f))
-            CompactAction("↷", enabled = canRedo, onClick = onRedo, modifier = Modifier.weight(1f))
+            CompactAction(
+                label = stringResource(R.string.keypad_undo),
+                enabled = canUndo,
+                onClick = onUndo,
+                modifier = Modifier.weight(1f),
+            )
+            CompactAction(
+                label = stringResource(R.string.keypad_redo),
+                enabled = canRedo,
+                onClick = onRedo,
+                modifier = Modifier.weight(1f),
+            )
         }
         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            CompactAction(stringResource(R.string.keypad_delete), enabled = true, onClick = onErase, modifier = Modifier.weight(1f))
-            CompactAction(stringResource(R.string.keypad_hint), enabled = true, onClick = onHint, modifier = Modifier.weight(1f))
+            CompactAction(
+                label = stringResource(R.string.keypad_delete),
+                enabled = true,
+                onClick = onErase,
+                modifier = Modifier.weight(1f),
+            )
+            CompactAction(
+                label = stringResource(R.string.keypad_hint),
+                enabled = true,
+                onClick = onHint,
+                modifier = Modifier.weight(1f),
+            )
         }
         CompactAction(
             label = stringResource(R.string.keypad_smart_hint),
@@ -214,6 +237,10 @@ private fun FeaturePanel(
     cageSelectionTotal: CageSelectionTotal?,
     inactiveCombinations: Set<String>,
     onCombination: (String) -> Unit,
+    onPause: () -> Unit,
+    onCheck: () -> Unit,
+    onHint: () -> Unit,
+    onSettings: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     when (mode) {
@@ -225,7 +252,13 @@ private fun FeaturePanel(
             modifier = modifier,
         )
 
-        KeypadMode.MENU -> MenuPanel(modifier = modifier)
+        KeypadMode.MENU -> MenuPanel(
+            onPause = onPause,
+            onCheck = onCheck,
+            onHint = onHint,
+            onSettings = onSettings,
+            modifier = modifier,
+        )
     }
 }
 
@@ -301,20 +334,66 @@ private fun CageTotalPanel(
 
 @Composable
 private fun MenuPanel(
+    onPause: () -> Unit,
+    onCheck: () -> Unit,
+    onHint: () -> Unit,
+    onSettings: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Box(
+    Column(
         modifier = modifier
             .height(150.dp)
             .fillMaxWidth()
             .background(Color(0xFF263140))
-            .border(1.dp, Color.White.copy(alpha = 0.08f)),
+            .border(1.dp, Color.White.copy(alpha = 0.08f))
+            .padding(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            MenuActionButton(
+                label = stringResource(R.string.action_pause),
+                onClick = onPause,
+                modifier = Modifier.weight(1f),
+            )
+            MenuActionButton(
+                label = stringResource(R.string.action_check),
+                onClick = onCheck,
+                modifier = Modifier.weight(1f),
+            )
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            MenuActionButton(
+                label = stringResource(R.string.keypad_smart_hint),
+                onClick = onHint,
+                modifier = Modifier.weight(1f),
+            )
+            MenuActionButton(
+                label = stringResource(R.string.home_settings),
+                onClick = onSettings,
+                modifier = Modifier.weight(1f),
+            )
+        }
+    }
+}
+
+@Composable
+private fun MenuActionButton(
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier
+            .height(63.dp)
+            .background(Color(0xFF2B3544))
+            .border(1.dp, Color.White.copy(alpha = 0.08f))
+            .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
         Text(
-            text = stringResource(R.string.keypad_menu_placeholder),
-            color = Color.White.copy(alpha = 0.62f),
-            style = MaterialTheme.typography.bodyMedium,
+            text = label,
+            color = Color.White.copy(alpha = 0.86f),
+            style = MaterialTheme.typography.labelLarge,
             textAlign = TextAlign.Center,
         )
     }

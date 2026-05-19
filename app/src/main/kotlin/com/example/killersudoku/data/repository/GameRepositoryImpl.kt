@@ -8,6 +8,10 @@ import com.example.killersudoku.domain.model.Difficulty
 import com.example.killersudoku.domain.model.DifficultyStats
 import com.example.killersudoku.domain.model.Game
 import com.example.killersudoku.domain.model.GameStats
+import com.example.killersudoku.domain.model.BoardTheme
+import com.example.killersudoku.domain.model.HINT_COIN_COST
+import com.example.killersudoku.domain.model.HINT_TICKET_COST
+import com.example.killersudoku.domain.model.HintSpendResult
 import com.example.killersudoku.domain.model.PlayerProgress
 import com.example.killersudoku.domain.model.RewardResult
 import com.example.killersudoku.domain.model.RewardTier
@@ -103,8 +107,71 @@ class GameRepositoryImpl @Inject constructor(
         return reward
     }
 
+    override suspend fun spendHintAccess(): HintSpendResult? {
+        val progress = gameDao.getPlayerProgress()?.toDomain() ?: PlayerProgress()
+        val updated = when {
+            progress.hintTickets > 0 -> progress.copy(hintTickets = progress.hintTickets - 1)
+            progress.coins >= HINT_COIN_COST -> progress.copy(coins = progress.coins - HINT_COIN_COST)
+            else -> return null
+        }
+        gameDao.upsertPlayerProgress(updated.toEntity())
+        return HintSpendResult(
+            coinsSpent = if (progress.hintTickets > 0) 0 else HINT_COIN_COST,
+            usedTicket = progress.hintTickets > 0,
+        )
+    }
+
+    override suspend fun purchaseHintTicket(): Boolean {
+        val progress = gameDao.getPlayerProgress()?.toDomain() ?: PlayerProgress()
+        if (progress.coins < HINT_TICKET_COST) return false
+        gameDao.upsertPlayerProgress(
+            progress.copy(
+                coins = progress.coins - HINT_TICKET_COST,
+                hintTickets = progress.hintTickets + 1,
+            ).toEntity(),
+        )
+        return true
+    }
+
+    override suspend fun setBgmEnabled(enabled: Boolean) {
+        updateProgress { it.copy(bgmEnabled = enabled) }
+    }
+
+    override suspend fun setSoundEnabled(enabled: Boolean) {
+        updateProgress { it.copy(soundEnabled = enabled) }
+    }
+
+    override suspend fun setAutoClearNotes(enabled: Boolean) {
+        updateProgress { it.copy(autoClearNotes = enabled) }
+    }
+
+    override suspend fun setErrorHighlightEnabled(enabled: Boolean) {
+        updateProgress { it.copy(errorHighlightEnabled = enabled) }
+    }
+
+    override suspend fun selectTheme(theme: BoardTheme): Boolean {
+        val progress = gameDao.getPlayerProgress()?.toDomain() ?: PlayerProgress()
+        val unlocked = progress.unlockedThemes
+        val updated = when {
+            theme in unlocked -> progress.copy(selectedTheme = theme)
+            progress.coins >= theme.unlockCost -> progress.copy(
+                coins = progress.coins - theme.unlockCost,
+                selectedTheme = theme,
+                unlockedThemes = unlocked + theme,
+            )
+            else -> return false
+        }
+        gameDao.upsertPlayerProgress(updated.toEntity())
+        return true
+    }
+
     override suspend fun getGame(gameId: Long): Game? =
         gameDao.getById(gameId)?.toDomain()
+
+    private suspend fun updateProgress(update: (PlayerProgress) -> PlayerProgress) {
+        val progress = gameDao.getPlayerProgress()?.toDomain() ?: PlayerProgress()
+        gameDao.upsertPlayerProgress(update(progress).toEntity())
+    }
 
     private suspend fun addProgressCoins(
         coins: Int,
@@ -118,6 +185,7 @@ class GameRepositoryImpl @Inject constructor(
     private suspend fun completionRewardFor(game: Game): RewardResult {
         val baseCoins = 20 + game.puzzle.difficulty.level * 5
         val tier = tierFor(game.puzzle.difficulty, game.elapsedMillis)
+            .let { if (game.usedHint) it.downgraded() else it }
         val timeBonus = baseCoins * tier.bonusPercent / 100
         val firstWinBonus = if (gameDaoCanAwardFirstWin(game)) 50 else 0
         return RewardResult(
@@ -146,4 +214,12 @@ class GameRepositoryImpl @Inject constructor(
     }
 
     private fun today(): String = LocalDate.now().toString()
+
+    private fun RewardTier.downgraded(): RewardTier =
+        when (this) {
+            RewardTier.PERFECT -> RewardTier.GOLD
+            RewardTier.GOLD -> RewardTier.SILVER
+            RewardTier.SILVER -> RewardTier.BRONZE
+            RewardTier.BRONZE, RewardTier.NONE -> this
+        }
 }

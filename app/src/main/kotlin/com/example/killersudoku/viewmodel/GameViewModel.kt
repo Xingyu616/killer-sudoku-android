@@ -3,9 +3,11 @@ package com.example.killersudoku.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.killersudoku.R
+import com.example.killersudoku.domain.model.BoardTheme
 import com.example.killersudoku.domain.model.Difficulty
 import com.example.killersudoku.domain.model.Game
 import com.example.killersudoku.domain.model.GridPosition
+import com.example.killersudoku.domain.model.positions
 import com.example.killersudoku.domain.model.valueAt
 import com.example.killersudoku.domain.repository.GameRepository
 import com.example.killersudoku.domain.usecase.GetHintUseCase
@@ -196,7 +198,9 @@ class GameViewModel @Inject constructor(
 
         val edited = positions.fold(game) { current, position ->
             current.withInputValue(position, value)
-        }.copy(isCompleted = false, completedAt = null)
+        }
+            .cleanRelatedNotesIfEnabled(positions, value, state.progress.autoClearNotes)
+            .copy(isCompleted = false, completedAt = null)
         val updated = edited.completedIfSolved()
 
         pushUndo(game)
@@ -269,8 +273,23 @@ class GameViewModel @Inject constructor(
             _uiState.update { it.copy(message = UiMessage(R.string.message_no_hint)) }
             return
         }
+        viewModelScope.launch {
+            val spend = repository.spendHintAccess() ?: run {
+                _uiState.update { it.copy(message = UiMessage(R.string.message_hint_cost_short)) }
+                return@launch
+            }
+            applyHint(game, hint.position, hint.answer ?: return@launch, spend.usedTicket)
+        }
+    }
+
+    private fun applyHint(
+        game: Game,
+        position: GridPosition,
+        answer: Int,
+        usedTicket: Boolean,
+    ) {
         val updated = game
-            .withCell(hint.position, hint.answer ?: return)
+            .withCell(position, answer)
             .copy(usedHint = true, isCompleted = false, completedAt = null)
             .completedIfSolved()
         pushUndo(game)
@@ -278,18 +297,18 @@ class GameViewModel @Inject constructor(
         _uiState.update {
             it.copy(
                 game = updated,
-                selectedCell = hint.position,
-                selectedCells = setOf(hint.position),
+                selectedCell = position,
+                selectedCells = setOf(position),
                 notes = updated.notes,
-                cageCombinations = cageCombinationsFor(updated, hint.position),
+                cageCombinations = cageCombinationsFor(updated, position),
                 selectedCageTotal = null,
-                selectedCageId = cageIdFor(updated, hint.position),
+                selectedCageId = cageIdFor(updated, position),
                 message = UiMessage(
-                    R.string.message_hint,
+                    if (usedTicket) R.string.message_hint_ticket else R.string.message_hint_paid,
                     listOf(
-                        (hint.position.row + 1).toString(),
-                        (hint.position.col + 1).toString(),
-                        hint.answer.toString(),
+                        (position.row + 1).toString(),
+                        (position.col + 1).toString(),
+                        answer.toString(),
                     ),
                 ),
                 elapsedMillis = updated.currentElapsedMillis(),
@@ -325,6 +344,48 @@ class GameViewModel @Inject constructor(
     }
 
     fun smartHint() = requestHint()
+
+    fun purchaseHintTicket() {
+        viewModelScope.launch {
+            val purchased = repository.purchaseHintTicket()
+            _uiState.update {
+                it.copy(
+                    message = UiMessage(
+                        if (purchased) R.string.message_hint_ticket_bought else R.string.message_hint_ticket_short,
+                    ),
+                )
+            }
+        }
+    }
+
+    fun setBgmEnabled(enabled: Boolean) {
+        viewModelScope.launch { repository.setBgmEnabled(enabled) }
+    }
+
+    fun setSoundEnabled(enabled: Boolean) {
+        viewModelScope.launch { repository.setSoundEnabled(enabled) }
+    }
+
+    fun setAutoClearNotes(enabled: Boolean) {
+        viewModelScope.launch { repository.setAutoClearNotes(enabled) }
+    }
+
+    fun setErrorHighlightEnabled(enabled: Boolean) {
+        viewModelScope.launch { repository.setErrorHighlightEnabled(enabled) }
+    }
+
+    fun selectTheme(theme: BoardTheme) {
+        viewModelScope.launch {
+            val selected = repository.selectTheme(theme)
+            _uiState.update {
+                it.copy(
+                    message = UiMessage(
+                        if (selected) R.string.message_theme_selected else R.string.message_theme_short,
+                    ),
+                )
+            }
+        }
+    }
 
     fun claimDailyCheckIn() {
         viewModelScope.launch {
@@ -537,6 +598,35 @@ class GameViewModel @Inject constructor(
             1 -> withNotes(notes - position).withCell(position, next.single())
             else -> withCell(position, 0).withNotes(notes + (position to next))
         }
+    }
+
+    private fun Game.cleanRelatedNotesIfEnabled(
+        positions: Set<GridPosition>,
+        value: Int,
+        enabled: Boolean,
+    ): Game {
+        if (!enabled) return this
+        val solvedPositions = positions.filter { position ->
+            currentGrid.valueAt(position) == value &&
+                puzzle.solutionGrid.valueAt(position) == value
+        }
+        if (solvedPositions.isEmpty()) return this
+
+        val affected = solvedPositions.flatMap { position ->
+            val cageCells = puzzle.cageFor(position)?.cells.orEmpty()
+            currentGrid.positions().filter { other ->
+                other != position &&
+                    (
+                        other.row == position.row ||
+                            other.col == position.col ||
+                            other in cageCells
+                        )
+            }
+        }.toSet()
+        val cleanedNotes = notes.mapValues { (position, values) ->
+            if (position in affected) values - value else values
+        }
+        return withNotes(cleanedNotes)
     }
 
     private fun <K, T> Map<K, Set<T>>.toggle(key: K, value: T): Map<K, Set<T>> {

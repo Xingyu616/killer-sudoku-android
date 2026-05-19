@@ -10,6 +10,7 @@ import com.example.killersudoku.domain.model.GameHistory
 import com.example.killersudoku.domain.model.Grid
 import com.example.killersudoku.domain.model.GridPosition
 import com.example.killersudoku.domain.model.Puzzle
+import com.example.killersudoku.domain.model.BoardTheme
 import com.example.killersudoku.domain.model.PlayerProgress
 import com.example.killersudoku.domain.model.RewardResult
 import com.example.killersudoku.domain.model.RewardTier
@@ -94,18 +95,47 @@ fun GameHistoryEntity.toDomain(): GameHistory =
 fun PlayerProgressEntity.toDomain(): PlayerProgress =
     PlayerProgress(
         coins = coins,
+        hintTickets = hintTickets,
         lastCheckInDate = lastCheckInDate,
         checkInStreak = checkInStreak,
         lastFirstWinDate = lastFirstWinDate,
+        bgmEnabled = bgmEnabled,
+        soundEnabled = soundEnabled,
+        autoClearNotes = autoClearNotes,
+        errorHighlightEnabled = errorHighlightEnabled,
+        selectedTheme = selectedTheme.toBoardTheme(),
+        unlockedThemes = unlockedThemes.decodeBoardThemes(),
     )
 
 fun PlayerProgress.toEntity(): PlayerProgressEntity =
     PlayerProgressEntity(
         coins = coins,
+        hintTickets = hintTickets,
         lastCheckInDate = lastCheckInDate,
         checkInStreak = checkInStreak,
         lastFirstWinDate = lastFirstWinDate,
+        bgmEnabled = bgmEnabled,
+        soundEnabled = soundEnabled,
+        autoClearNotes = autoClearNotes,
+        errorHighlightEnabled = errorHighlightEnabled,
+        selectedTheme = selectedTheme.name,
+        unlockedThemes = unlockedThemes
+            .ifEmpty { setOf(BoardTheme.DEFAULT) }
+            .joinToString(separator = ",") { it.name },
     )
+
+private fun String?.toBoardTheme(): BoardTheme =
+    runCatching { BoardTheme.valueOf(this ?: BoardTheme.DEFAULT.name) }
+        .getOrDefault(BoardTheme.DEFAULT)
+
+private fun String?.decodeBoardThemes(): Set<BoardTheme> {
+    val themes = this
+        ?.split(",")
+        ?.mapNotNull { encoded -> runCatching { BoardTheme.valueOf(encoded) }.getOrNull() }
+        ?.toSet()
+        .orEmpty()
+    return themes + BoardTheme.DEFAULT
+}
 
 fun Grid.encodeGrid(): String =
     flatten().joinToString(separator = "") { it.toString() }

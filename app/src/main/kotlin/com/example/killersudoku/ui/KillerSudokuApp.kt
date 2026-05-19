@@ -14,6 +14,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.example.killersudoku.ui.screen.DifficultyScreen
 import com.example.killersudoku.ui.screen.GameScreen
 import com.example.killersudoku.ui.screen.HomeScreen
+import com.example.killersudoku.ui.theme.KillerSudokuTheme
 import com.example.killersudoku.viewmodel.GameViewModel
 
 private enum class AppScreen {
@@ -42,44 +43,57 @@ fun KillerSudokuApp(
         }
     }
 
-    when (AppScreen.valueOf(screen)) {
-        AppScreen.HOME -> HomeScreen(
-            state = state,
-            onContinue = {
-                viewModel.resumeGame()
-                screen = AppScreen.GAME.name
-            },
-            onNewGame = { screen = AppScreen.DIFFICULTY.name },
-            onDailyCheckIn = viewModel::claimDailyCheckIn,
-        )
+    KillerSudokuTheme(boardTheme = state.progress.selectedTheme) {
+        when (AppScreen.valueOf(screen)) {
+            AppScreen.HOME -> HomeScreen(
+                state = state,
+                onContinue = {
+                    viewModel.resumeGame()
+                    screen = AppScreen.GAME.name
+                },
+                onNewGame = { screen = AppScreen.DIFFICULTY.name },
+                onDailyCheckIn = viewModel::claimDailyCheckIn,
+                onPurchaseHintTicket = viewModel::purchaseHintTicket,
+                onBgmChanged = viewModel::setBgmEnabled,
+                onSoundChanged = viewModel::setSoundEnabled,
+                onAutoClearNotesChanged = viewModel::setAutoClearNotes,
+                onErrorHighlightChanged = viewModel::setErrorHighlightEnabled,
+                onSelectTheme = viewModel::selectTheme,
+            )
 
-        AppScreen.DIFFICULTY -> DifficultyScreen(
-            onBack = { screen = AppScreen.HOME.name },
-            onDifficultySelected = {
-                viewModel.startNewGame(it)
-                screen = AppScreen.GAME.name
-            },
-        )
+            AppScreen.DIFFICULTY -> DifficultyScreen(
+                onBack = { screen = AppScreen.HOME.name },
+                onDifficultySelected = {
+                    viewModel.startNewGame(it)
+                    screen = AppScreen.GAME.name
+                },
+            )
 
-        AppScreen.GAME -> GameScreen(
-            state = state,
-            onBack = {
-                viewModel.pauseGame()
-                screen = AppScreen.HOME.name
-            },
-            onCellClick = viewModel::selectCell,
-            onCellsSelected = viewModel::selectCells,
-            onCombination = viewModel::toggleCombination,
-            onNumber = viewModel::inputNumber,
-            onErase = viewModel::eraseSelected,
-            onHint = viewModel::requestHint,
-            onCheck = viewModel::checkBoard,
-            onSolve = viewModel::smartHint,
-            onUndo = viewModel::undo,
-            onRedo = viewModel::redo,
-            onPause = viewModel::pauseGame,
-            onResume = viewModel::resumeGame,
-            onCompletionDismiss = viewModel::dismissCompletionDialog,
-        )
+            AppScreen.GAME -> GameScreen(
+                state = state,
+                onBack = {
+                    viewModel.pauseGame()
+                    screen = AppScreen.HOME.name
+                },
+                onCellClick = viewModel::selectCell,
+                onCellsSelected = viewModel::selectCells,
+                onCombination = viewModel::toggleCombination,
+                onNumber = viewModel::inputNumber,
+                onErase = viewModel::eraseSelected,
+                onHint = viewModel::requestHint,
+                onCheck = viewModel::checkBoard,
+                onSolve = viewModel::smartHint,
+                onUndo = viewModel::undo,
+                onRedo = viewModel::redo,
+                onPause = viewModel::pauseGame,
+                onResume = viewModel::resumeGame,
+                onCompletionDismiss = viewModel::dismissCompletionDialog,
+                onBgmChanged = viewModel::setBgmEnabled,
+                onSoundChanged = viewModel::setSoundEnabled,
+                onAutoClearNotesChanged = viewModel::setAutoClearNotes,
+                onErrorHighlightChanged = viewModel::setErrorHighlightEnabled,
+                onSelectTheme = viewModel::selectTheme,
+            )
+        }
     }
 }

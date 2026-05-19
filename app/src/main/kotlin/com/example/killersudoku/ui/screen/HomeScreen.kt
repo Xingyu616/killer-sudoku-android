@@ -4,10 +4,13 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
@@ -28,7 +31,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.killersudoku.R
+import com.example.killersudoku.domain.model.BoardTheme
 import com.example.killersudoku.domain.model.DifficultyStats
+import com.example.killersudoku.domain.model.HINT_TICKET_COST
 import com.example.killersudoku.viewmodel.GameUiState
 import java.time.LocalDate
 
@@ -44,16 +49,22 @@ fun HomeScreen(
     onContinue: () -> Unit,
     onNewGame: () -> Unit,
     onDailyCheckIn: () -> Unit,
+    onPurchaseHintTicket: () -> Unit,
+    onBgmChanged: (Boolean) -> Unit,
+    onSoundChanged: (Boolean) -> Unit,
+    onAutoClearNotesChanged: (Boolean) -> Unit,
+    onErrorHighlightChanged: (Boolean) -> Unit,
+    onSelectTheme: (BoardTheme) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var dialog by rememberSaveable { mutableStateOf<HomeDialog?>(null) }
-    var bgmEnabled by rememberSaveable { mutableStateOf(true) }
     val checkedToday = state.progress.lastCheckInDate == LocalDate.now().toString()
 
     Surface(modifier = modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .windowInsetsPadding(WindowInsets.safeDrawing)
                 .padding(horizontal = 24.dp, vertical = 32.dp),
             verticalArrangement = Arrangement.SpaceBetween,
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -72,11 +83,11 @@ fun HomeScreen(
             )
 
             QuickActions(
-                bgmEnabled = bgmEnabled,
+                bgmEnabled = state.progress.bgmEnabled,
                 onRecords = { dialog = HomeDialog.RECORDS },
                 onBag = { dialog = HomeDialog.BAG },
                 onSettings = { dialog = HomeDialog.SETTINGS },
-                onBgm = { bgmEnabled = !bgmEnabled },
+                onBgm = { onBgmChanged(!state.progress.bgmEnabled) },
             )
         }
     }
@@ -87,15 +98,19 @@ fun HomeScreen(
             onDismiss = { dialog = null },
         )
 
-        HomeDialog.BAG -> SimpleDialog(
-            title = stringResource(R.string.home_bag),
-            body = stringResource(R.string.home_bag_empty),
+        HomeDialog.BAG -> BagDialog(
+            state = state,
+            onPurchaseHintTicket = onPurchaseHintTicket,
+            onSelectTheme = onSelectTheme,
             onDismiss = { dialog = null },
         )
 
         HomeDialog.SETTINGS -> SettingsDialog(
-            bgmEnabled = bgmEnabled,
-            onBgmChanged = { bgmEnabled = it },
+            state = state,
+            onBgmChanged = onBgmChanged,
+            onSoundChanged = onSoundChanged,
+            onAutoClearNotesChanged = onAutoClearNotesChanged,
+            onErrorHighlightChanged = onErrorHighlightChanged,
             onDismiss = { dialog = null },
         )
 
@@ -122,7 +137,11 @@ private fun TopStatusBar(
                 fontWeight = FontWeight.SemiBold,
             )
             Text(
-                text = stringResource(R.string.reward_streak, state.progress.checkInStreak.toString()),
+                text = stringResource(
+                    R.string.reward_inventory_summary,
+                    state.progress.hintTickets.toString(),
+                    state.progress.checkInStreak.toString(),
+                ),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -308,9 +327,88 @@ private fun DifficultyStatRow(stats: DifficultyStats) {
 }
 
 @Composable
+private fun BagDialog(
+    state: GameUiState,
+    onPurchaseHintTicket: () -> Unit,
+    onSelectTheme: (BoardTheme) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.home_bag)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(stringResource(R.string.reward_coins, state.progress.coins.toString()))
+                Text(stringResource(R.string.reward_hint_tickets, state.progress.hintTickets.toString()))
+                Button(onClick = onPurchaseHintTicket) {
+                    Text(stringResource(R.string.reward_buy_hint_ticket, HINT_TICKET_COST.toString()))
+                }
+                Text(
+                    text = stringResource(R.string.theme_title),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                BoardTheme.entries.forEach { theme ->
+                    ThemeRow(
+                        theme = theme,
+                        selected = state.progress.selectedTheme == theme,
+                        unlocked = theme in state.progress.unlockedThemes,
+                        onSelectTheme = onSelectTheme,
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.action_close))
+            }
+        },
+    )
+}
+
+@Composable
+private fun ThemeRow(
+    theme: BoardTheme,
+    selected: Boolean,
+    unlocked: Boolean,
+    onSelectTheme: (BoardTheme) -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column {
+            Text(theme.title)
+            Text(
+                text = if (unlocked) {
+                    stringResource(R.string.theme_unlocked)
+                } else {
+                    stringResource(R.string.theme_unlock_cost, theme.unlockCost.toString())
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        TextButton(onClick = { onSelectTheme(theme) }) {
+            Text(
+                when {
+                    selected -> stringResource(R.string.theme_selected)
+                    unlocked -> stringResource(R.string.theme_select)
+                    else -> stringResource(R.string.theme_unlock)
+                },
+            )
+        }
+    }
+}
+
+@Composable
 private fun SettingsDialog(
-    bgmEnabled: Boolean,
+    state: GameUiState,
     onBgmChanged: (Boolean) -> Unit,
+    onSoundChanged: (Boolean) -> Unit,
+    onAutoClearNotesChanged: (Boolean) -> Unit,
+    onErrorHighlightChanged: (Boolean) -> Unit,
     onDismiss: () -> Unit,
 ) {
     AlertDialog(
@@ -318,17 +416,26 @@ private fun SettingsDialog(
         title = { Text(stringResource(R.string.home_settings)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(stringResource(R.string.home_bgm))
-                    Switch(
-                        checked = bgmEnabled,
-                        onCheckedChange = onBgmChanged,
-                    )
-                }
+                SettingSwitchRow(
+                    label = stringResource(R.string.home_bgm),
+                    checked = state.progress.bgmEnabled,
+                    onCheckedChange = onBgmChanged,
+                )
+                SettingSwitchRow(
+                    label = stringResource(R.string.settings_sound),
+                    checked = state.progress.soundEnabled,
+                    onCheckedChange = onSoundChanged,
+                )
+                SettingSwitchRow(
+                    label = stringResource(R.string.settings_auto_clear_notes),
+                    checked = state.progress.autoClearNotes,
+                    onCheckedChange = onAutoClearNotesChanged,
+                )
+                SettingSwitchRow(
+                    label = stringResource(R.string.settings_error_highlight),
+                    checked = state.progress.errorHighlightEnabled,
+                    onCheckedChange = onErrorHighlightChanged,
+                )
                 Text(
                     text = stringResource(R.string.home_settings_hint),
                     style = MaterialTheme.typography.bodySmall,
@@ -345,21 +452,22 @@ private fun SettingsDialog(
 }
 
 @Composable
-private fun SimpleDialog(
-    title: String,
-    body: String,
-    onDismiss: () -> Unit,
+private fun SettingSwitchRow(
+    label: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
 ) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(title) },
-        text = { Text(body) },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.action_close))
-            }
-        },
-    )
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(label)
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+        )
+    }
 }
 
 private fun formatDuration(millis: Long): String {
