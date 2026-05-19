@@ -53,16 +53,10 @@
     <string name="game_completion_hint">完成记录已保存，可以在首页查看最近成绩和最佳时间。</string>
     <string name="game_completion_reward">获得 %1$s 金币 · %2$s评级</string>
     <string name="game_first_win_bonus">今日首胜奖励 +%1$s 金币</string>
-    <string name="keypad_undo">撤</string>
-    <string name="keypad_redo">重</string>
     <string name="keypad_delete">删</string>
-    <string name="keypad_hint">?</string>
     <string name="keypad_smart_hint">提示</string>
-    <string name="keypad_mode_comb">组合</string>
-    <string name="keypad_mode_menu">菜单</string>
     <string name="keypad_cage_total">总和 %1$s</string>
     <string name="keypad_cage_total_detail">完整笼区 %1$s 个，额外已填 %2$s 个</string>
-    <string name="keypad_menu_placeholder">菜单功能预留</string>
     <string name="guide_title">玩法说明</string>
     <string name="guide_rules_title">规则</string>
     <string name="guide_rules_body">每行、每列、每个 3x3 宫都要填入 1-9，且不能重复。虚线笼区左上角数字是笼内总和，笼内数字也不能重复。</string>

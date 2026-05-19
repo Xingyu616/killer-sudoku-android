@@ -129,7 +129,7 @@ fun GameGrid(
             val cellWidth = size.width / 9f
             val cellHeight = size.height / 9f
             for (line in 1..8) {
-                val stroke = if (line % 3 == 0) 3.2f else 1.0f
+                val stroke = if (line % 3 == 0) 4.6f else 1.0f
                 drawLine(
                     color = gridLineColor.copy(alpha = if (line % 3 == 0) 0.88f else 0.42f),
                     start = Offset(cellWidth * line, 0f),

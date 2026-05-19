@@ -201,15 +201,11 @@ fun GameScreen(
                 inactiveCombinations = state.selectedCageId?.let { state.inactiveCombinations[it] }.orEmpty(),
                 inactiveNumbers = state.selectedCell?.let { state.inactiveNumbers[it] }.orEmpty(),
                 canUndo = state.canUndo,
-                canRedo = state.canRedo,
                 onCombination = onCombination,
                 onNumber = onNumber,
                 onErase = onErase,
                 onHint = onHint,
-                onSolve = onSolve,
                 onUndo = onUndo,
-                onRedo = onRedo,
-                onCheck = onCheck,
             )
 
             state.message?.let {

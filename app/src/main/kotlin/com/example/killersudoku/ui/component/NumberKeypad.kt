@@ -18,10 +18,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -40,18 +36,13 @@ fun NumberKeypad(
     inactiveCombinations: Set<String>,
     inactiveNumbers: Set<Int>,
     canUndo: Boolean,
-    canRedo: Boolean,
     onCombination: (String) -> Unit,
     onNumber: (Int) -> Unit,
     onErase: () -> Unit,
     onHint: () -> Unit,
-    onSolve: () -> Unit,
     onUndo: () -> Unit,
-    onRedo: () -> Unit,
-    onCheck: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var mode by remember { mutableStateOf(KeypadMode.COMBINATION) }
     Surface(
         modifier = modifier
             .fillMaxWidth()
@@ -64,27 +55,18 @@ fun NumberKeypad(
             horizontalArrangement = Arrangement.spacedBy(4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            ModeRail(
-                selectedMode = mode,
-                onModeChange = { mode = it },
-            )
-            FeaturePanel(
-                mode = mode,
+            CandidatePanel(
                 cageCombinations = cageCombinations,
                 cageSelectionTotal = cageSelectionTotal,
                 inactiveCombinations = inactiveCombinations,
                 onCombination = onCombination,
-                onCheck = onCheck,
                 modifier = Modifier.weight(1f),
             )
             ActionColumn(
                 canUndo = canUndo,
-                canRedo = canRedo,
                 onErase = onErase,
                 onHint = onHint,
-                onSolve = onSolve,
                 onUndo = onUndo,
-                onRedo = onRedo,
             )
             NumberGrid(
                 inactiveNumbers = inactiveNumbers,
@@ -94,108 +76,34 @@ fun NumberKeypad(
     }
 }
 
-private enum class KeypadMode {
-    COMBINATION,
-    MENU,
-}
-
-@Composable
-private fun ModeRail(
-    selectedMode: KeypadMode,
-    onModeChange: (KeypadMode) -> Unit,
-) {
-    Column(
-        modifier = Modifier.width(38.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
-        ModeButton(
-            label = stringResource(R.string.keypad_mode_comb),
-            selected = selectedMode == KeypadMode.COMBINATION,
-            onClick = { onModeChange(KeypadMode.COMBINATION) },
-            modifier = Modifier.weight(1f),
-        )
-        ModeButton(
-            label = stringResource(R.string.keypad_mode_menu),
-            selected = selectedMode == KeypadMode.MENU,
-            onClick = { onModeChange(KeypadMode.MENU) },
-            modifier = Modifier.weight(1f),
-        )
-    }
-}
-
-@Composable
-private fun ModeButton(
-    label: String,
-    selected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .background(if (selected) Color(0xFF324156) else Color(0xFF1A222E))
-            .border(1.dp, Color.White.copy(alpha = if (selected) 0.18f else 0.08f))
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text = label,
-            color = if (selected) Color.White else Color.White.copy(alpha = 0.58f),
-            style = MaterialTheme.typography.labelMedium,
-            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-            textAlign = TextAlign.Center,
-        )
-    }
-}
-
 @Composable
 private fun ActionColumn(
     canUndo: Boolean,
-    canRedo: Boolean,
     onErase: () -> Unit,
     onHint: () -> Unit,
-    onSolve: () -> Unit,
     onUndo: () -> Unit,
-    onRedo: () -> Unit,
 ) {
     Column(
         modifier = Modifier.width(54.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            CompactAction(
-                label = stringResource(R.string.keypad_undo),
-                enabled = canUndo,
-                onClick = onUndo,
-                modifier = Modifier.weight(1f),
-            )
-            CompactAction(
-                label = stringResource(R.string.keypad_redo),
-                enabled = canRedo,
-                onClick = onRedo,
-                modifier = Modifier.weight(1f),
-            )
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            CompactAction(
-                label = stringResource(R.string.keypad_delete),
-                enabled = true,
-                onClick = onErase,
-                modifier = Modifier.weight(1f),
-            )
-            CompactAction(
-                label = stringResource(R.string.keypad_hint),
-                enabled = true,
-                onClick = onHint,
-                modifier = Modifier.weight(1f),
-            )
-        }
+        CompactAction(
+            label = "↶",
+            enabled = canUndo,
+            onClick = onUndo,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        CompactAction(
+            label = stringResource(R.string.keypad_delete),
+            enabled = true,
+            onClick = onErase,
+            modifier = Modifier.fillMaxWidth(),
+        )
         CompactAction(
             label = stringResource(R.string.keypad_smart_hint),
             enabled = true,
-            onClick = onSolve,
+            onClick = onHint,
             modifier = Modifier.fillMaxWidth(),
-            height = 78,
         )
     }
 }
@@ -221,32 +129,6 @@ private fun CompactAction(
             color = if (enabled) Color.White.copy(alpha = 0.86f) else Color.White.copy(alpha = 0.28f),
             style = MaterialTheme.typography.labelLarge,
             textAlign = TextAlign.Center,
-        )
-    }
-}
-
-@Composable
-private fun FeaturePanel(
-    mode: KeypadMode,
-    cageCombinations: List<String>,
-    cageSelectionTotal: CageSelectionTotal?,
-    inactiveCombinations: Set<String>,
-    onCombination: (String) -> Unit,
-    onCheck: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    when (mode) {
-        KeypadMode.COMBINATION -> CandidatePanel(
-            cageCombinations = cageCombinations,
-            cageSelectionTotal = cageSelectionTotal,
-            inactiveCombinations = inactiveCombinations,
-            onCombination = onCombination,
-            modifier = modifier,
-        )
-
-        KeypadMode.MENU -> MenuPanel(
-            onCheck = onCheck,
-            modifier = modifier,
         )
     }
 }
@@ -318,51 +200,6 @@ private fun CageTotalPanel(
                 textAlign = TextAlign.Center,
             )
         }
-    }
-}
-
-@Composable
-private fun MenuPanel(
-    onCheck: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Box(
-        modifier = modifier
-            .height(150.dp)
-            .fillMaxWidth()
-            .background(Color(0xFF263140))
-            .border(1.dp, Color.White.copy(alpha = 0.08f))
-            .padding(8.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        MenuActionButton(
-            label = stringResource(R.string.action_check),
-            onClick = onCheck,
-            modifier = Modifier.fillMaxWidth(),
-        )
-    }
-}
-
-@Composable
-private fun MenuActionButton(
-    label: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Box(
-        modifier = modifier
-            .height(63.dp)
-            .background(Color(0xFF2B3544))
-            .border(1.dp, Color.White.copy(alpha = 0.08f))
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text = label,
-            color = Color.White.copy(alpha = 0.86f),
-            style = MaterialTheme.typography.labelLarge,
-            textAlign = TextAlign.Center,
-        )
     }
 }
 
